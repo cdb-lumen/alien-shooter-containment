@@ -447,7 +447,18 @@ function passengerVault(room:Fabricator,t:RoomPlan){
  wall(34,12,440,12,24,800);wall(1166,12,440,12,24,800);
 }
 function breachedBay(f:Fabricator,t:RoomPlan){
+ // Stage2: closed repair bed, lodged boarding body and two freight masses.
+ // The collision polygon is solid cover, never an exposed opening to space.
+ const seal=f.paint.clone();seal.name='room8-hull-seal';seal.color.setHex(0x657477);
  for(const hole of t.voids??[]){const b=bounds(hole);
+  f.slab(hole,-.04,.28,seal);
+  const growth=f.chitin;
+  // Rough growth follows the south boarding seam, contained inside solid cover.
+  const a=hole[3],end=hole[4];
+  for(let i=0;i<7;i++){
+   const s=(i+.5)/7,x=(a.x+(end.x-a.x)*s)*.88+b.x*U*.12,z=(a.y+(end.y-a.y)*s)*.88+b.z*U*.12;
+   f.ellipsoid(x/U,.34,z/U,.33+(i%3)*.08,.18+(i%2)*.1,.32,growth);
+  }
   // Cross-section loft: a narrow dorsal keel, high shoulders and rolled-under
   // flanks. Both shell and ribs use this SAME profile, so ribs cannot sink into it.
   const axis=v(.81,0,.586).normalize(),across=v(-axis.z,0,axis.x),origin=v(b.x,0,b.z);
@@ -491,7 +502,19 @@ function breachedBay(f:Fabricator,t:RoomPlan){
   }
  }
  const b=bounds(outline(t));f.sign('EMERGENCY HULL SEAL / HOLD',b.x,1.35,b.z0+.35,8);
- equipment(f,t,'cargo');
+ equipment(f,{...t,obstacles:t.obstacles.slice(0,1)},'cargo');
+ // Outbound low pallet: a full-footprint base with two strapped loads.
+ // Dimensions come from the same Room8 rectangles used by collision.
+ for(const r of t.obstacles.slice(1)){
+  const x=(r.x+r.width/2)/U,z=(r.y+r.height/2)/U,w=r.width/U,d=r.height/U;
+  f.box(x,.1,z,w,.2,d,f.dark,.03);
+  for(const side of [-1,1]){
+   const cx=x+side*w*.235;
+   f.box(cx,.39,z,w*.43,.58,d-.12,f.ivory,.07);
+   f.box(cx,.69,z,w*.43,.04,.13,f.bronze,.01);
+   for(const edge of [-1,1])f.box(cx,.4,z+edge*(d/2-.075),.14,.6,.05,f.bronze,.01);
+  }
+ }
 }
 function reactorFloor(f:Fabricator,t:RoomPlan){
  for(const hole of t.voids??[]){const b=bounds(hole),radius=Math.min(b.w,b.d)*.42;
