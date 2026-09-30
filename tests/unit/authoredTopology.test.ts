@@ -5,11 +5,12 @@ import {createExpeditionGeometry,canOccupyExpedition,hasClearExpeditionShot} fro
 import {FacilityNavigation} from '../../src/game/world/FacilityNavigation';
 import {ProjectileHitTracker} from '../../src/game/combat/CombatSystem';
 import {DepthGame} from '../../src/DepthGame';
+import {TRANSMISSION_TOPOLOGY} from '../../src/game/roguelike/transmissionChamberLayout';
 const ids=['passenger-vault','breached-loading-bay','overload-floor','awakening-bay'];
 const nodes=generateRun(3,3).nodes;
 const probes=[{x:420,y:280},{x:680,y:380},{x:600,y:440},{x:600,y:280}];
 describe('authored walkable topologies',()=>{
- it('replaces exactly four rectangular footprints with polygon boundaries and real voids',()=>{
+ it('retains four earlier authored footprints and registers the Room10 crown',()=>{
   expect(nodes).toHaveLength(20);
   for(const n of nodes){const t=ROOM_TEMPLATES[n.templateId];if(ids.includes(n.templateId)){
    expect(t).toHaveProperty('boundary');expect(t).toHaveProperty('voids');
@@ -18,6 +19,9 @@ describe('authored walkable topologies',()=>{
     expect(canOccupyExpedition(g,n.templateId==='passenger-vault'?{x:30,y:50}:{x:50,y:50},radius)).toBe(false);
     expect(canOccupyExpedition(g,probes[ids.indexOf(n.templateId)],radius)).toBe(false);
    }
+  }else if(n.templateId==='transmission-chamber'){
+   expect(t.boundary).toEqual(TRANSMISSION_TOPOLOGY.boundary);
+   expect(t.voids).toEqual(TRANSMISSION_TOPOLOGY.voids);expect(t.obstacles).toEqual([]);
   }else{expect(t).not.toHaveProperty('boundary');expect(t).not.toHaveProperty('voids');}}
  });
  it('connects spawn, exit and inward-offset breaches for larger actors',()=>{

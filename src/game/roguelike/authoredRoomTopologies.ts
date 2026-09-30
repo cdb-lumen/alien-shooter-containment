@@ -1,5 +1,6 @@
 import type {Point, RoomTemplate} from './types';
 import type {StoryTemplateId} from './storyRooms';
+import {TRANSMISSION_TOPOLOGY} from './transmissionChamberLayout';
 
 const polygon=(vertices:readonly (readonly [number,number])[]):readonly Point[]=>Object.freeze(vertices.map(([x,y])=>Object.freeze({x,y})));
 /** Stable story roles; these same footprints drive solids and neutral meshes. */
@@ -49,6 +50,7 @@ type Topology=Pick<RoomTemplate,'boundary'|'voids'|'spawn'|'exit'|'breaches'|'ob
 /** Shared floor/collision contract. Voids are sealed solid silhouettes, never jump gaps.
  * Width/height remain the camera envelope. Only explicitly listed rooms opt in. */
 export const AUTHORED_ROOM_TOPOLOGIES:Readonly<Partial<Record<StoryTemplateId,Topology>>>=Object.freeze({
+ 'transmission-chamber':TRANSMISSION_TOPOLOGY,
  'awakening-bay':Object.freeze({
   boundary:polygon([[80,40],[1120,40],[1160,80],[1160,800],[1120,840],[80,840],[40,800],[40,80]]),
   // Straight banks leave a 180-unit center aisle and connected outer routes.

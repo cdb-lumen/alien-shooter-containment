@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {transmissionChamberRoom} from './TransmissionChamberRoom';
 import {PASSENGER_FINISHES} from './RoomEquipmentPalette';
 import {createAwakeningServiceFinish} from './AwakeningServiceFinish';
 import {AWAKENING_BLOCKOUT,PASSENGER_BLOCKOUT,AUTHORED_ROOM_TOPOLOGIES} from '../game/roguelike/authoredRoomTopologies';
@@ -552,6 +553,7 @@ function deckServices(f:Fabricator,t:RoomPlan){
  }
 }
 export function authoredRoom(id:string,t:RoomPlan):T.Group|null{
+ if(id==='transmission-chamber')return transmissionChamberRoom();
  if(!(AUTHORED_ROOMS as readonly string[]).includes(id))return null;
  const f=new Fabricator();f.root.name=`authored-${id}`;
  const deckPlan=id==='passenger-vault'?{...t,voids:[]}:t;
