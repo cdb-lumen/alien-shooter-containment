@@ -1,4 +1,4 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import * as T from 'three';
 import {ROOM_TEMPLATES} from '../game/roguelike/roomTemplates';
@@ -42,6 +42,31 @@ describe('Room10 rough placement',()=>{
    if(solid.id.startsWith('waveguide'))expect(bounds.max.y*32).toBeLessThanOrEqual(44);
   }
   disposeModel(room);
+ });
+ it('keeps stage3 shell inside existing wall bands and deck dressing flush',()=>{
+  const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
+  const shell=room.getObjectByName('ceramic-perimeter-shell')!;expect(shell).toBeDefined();
+  shell.traverse(o=>{if(!(o instanceof T.Mesh))return;const b=new T.Box3().setFromObject(o);
+   expect(b.max.x*32<=6||b.min.x*32>=1194||b.max.z*32<=6||b.min.z*32>=874).toBe(true);
+  });
+  const floor=room.getObjectByName('flush-deck-inlays')!;expect(new T.Box3().setFromObject(floor).max.y*32).toBeLessThanOrEqual(.101);
+  expect(room.getObjectByName('transmission-instrument-panel')).toBeDefined();
+  room.traverse(o=>{if(!(o instanceof T.Mesh))return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
+   if(m instanceof T.MeshStandardMaterial){expect(m.emissiveIntensity).toBeLessThanOrEqual(m.name==='transmission-indicator'?.25:1);expect(m.map).toBeNull();}
+  }});disposeModel(room);
+ });
+ it('releases batch scratch geometry once and retains shadow ownership',()=>{
+  const disposal=vi.spyOn(T.BufferGeometry.prototype,'dispose');
+  try{
+   const room=authoredRoom('transmission-chamber',template)!;
+   const discarded=[...disposal.mock.contexts];expect(discarded.length).toBeGreaterThan(0);
+   room.traverse(o=>{if(o instanceof T.Mesh){
+    expect(discarded).not.toContain(o.geometry);
+    expect(o.castShadow&&o.receiveShadow&&o.userData.bakedEnvironment).toBe(true);
+   }});
+   disposeModel(room);
+   expect(new Set(disposal.mock.contexts).size).toBe(disposal.mock.contexts.length);
+  }finally{disposal.mockRestore();}
  });
  it('owns bounded room resources and disposes each exactly once',()=>{
   const room=authoredRoom('transmission-chamber',template);expect(room).not.toBeNull();if(!room)return;
