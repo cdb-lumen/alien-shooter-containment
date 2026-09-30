@@ -1,0 +1,13 @@
+{
+  "source_diff_only_room8_floor_block": true,
+  "accepted_scar_and_rest_of_authored_rooms_byte_unchanged": true,
+  "topology_unchanged": true,
+  "matched_before_after_views": 4,
+  "errors": [],
+  "aborted": [],
+  "captures": "static paused checkpoint, no combat claim",
+  "runtime_source_sha256": {
+    "src/render/AuthoredRooms.ts": "aec8faa86773836d7b84584ff2e80608cf89a132d4f35bfd88870b07016e3105",
+    "src/game/roguelike/authoredRoomTopologies.ts": "6e23f62996875cf1e8e2389b22ac9d268fd0157cd8fa936a3ab4c311065937d8"
+  }
+}

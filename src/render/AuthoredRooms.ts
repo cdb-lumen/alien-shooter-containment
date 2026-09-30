@@ -451,29 +451,12 @@ function breachedBay(f:Fabricator,t:RoomPlan){
  // All apron relief is flush. Raised details remain inside existing solid cover.
  f.deck.color.setHex(0x354246);
  f.chitin.color.setHex(0x293c30);f.ribs.color.setHex(0x788167);
- const apron=f.paint.clone();apron.name='room8-freight-apron';apron.color.setHex(0x485357);apron.roughness=.91;
- const markings=f.stencil.clone();markings.name='room8-apron-markings';markings.color.setHex(0xbaa16a);
- const rubber=f.dark.clone();rubber.name='room8-docking-channels';rubber.roughness=.96;
- const flush=(x:number,z:number,w:number,d:number,m:T.Material,y=.005)=>f.box(x/U,y,z/U,w/U,.008,d/U,m,0);
- // Low-contrast modular loading plates give the empty fighting apron a purpose.
- for(const [x,z,w,d]of [[280,470,210,160],[630,645,370,96],[900,690,170,80],[300,310,160,80]]){
-  flush(x,z,w,d,apron);
-  for(const side of [-1,1]){
-   flush(x+side*(w/2-5),z,2,d-12,f.edge,.013);
-   for(const end of [-1,1])flush(x+side*(w/2-17),z+end*(d/2-6),22,3,markings,.016);
-  }
+ // Worn loading-face paint belongs to the occupied freight, not the fighting apron.
+ const markings=f.stencil.clone();markings.name='room8-apron-markings';markings.color.setHex(0x777866);markings.roughness=.96;
+ for(const r of t.obstacles){
+  const length=r.width+16,gap=5,stroke=(length-2*gap)/3;
+  for(let i=0;i<3;i++)f.box((r.x-8+stroke/2+i*(stroke+gap))/U,.005,(r.y-12)/U,stroke/U,.008,3/U,markings,0);
  }
- // Recessed freight guide channels stop before the turning space and scar.
- for(const x of [245,430]){
-  flush(x,585,7,110,rubber,.016);flush(x+2,585,1.5,110,f.edge,.022);
-  for(let z=540;z<=630;z+=18)flush(x,z,11,2,f.bronze,.025);
- }
- for(const x of [610,790]){
-  flush(x,738,7,96,rubber,.016);flush(x+2,738,1.5,96,f.edge,.022);
- }
- // A dashed freight boundary reads as paint, not an invisible barrier.
- for(let x=470;x<990;x+=34)flush(x,710,19,3,markings,.017);
- for(let z=355;z<570;z+=30)flush(182,z,3,16,markings,.017);
  // Rear wall reinforcement stays on the existing perimeter. No new lane solids.
  const perimeter=outline(t);
  for(let i=0;i<2;i++){
