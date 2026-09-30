@@ -83,6 +83,19 @@ describe('Room9 room visuals and retained placement',()=>{
   for(const name of ['relay-open-rails','relay-fiber-loops','relay-bridge-coupler','relay-distribution-drum'])expect(g.getObjectByName(name)).toBeDefined();
   expect(g.animations).toEqual([]);
  });
+ it('builds a flanged drum with separated fork feeds and an open manual coupler',()=>{
+  const g=make(),drum=g.getObjectByName('relay-drum-flanges'),fork=g.getObjectByName('relay-fork-guides');
+  expect(drum).toBeDefined();expect(fork).toBeDefined();
+  const flanges=new T.Box3().setFromObject(drum!);expect((flanges.max.x-flanges.min.x)*32).toBeGreaterThanOrEqual(80);
+  const feeds=new T.Box3().setFromObject(fork!);expect((feeds.max.x-feeds.min.x)*32).toBeGreaterThan(50);
+  const left=g.getObjectByName('relay-coupler-left'),right=g.getObjectByName('relay-coupler-right'),lever=g.getObjectByName('relay-manual-lever');
+  expect(left).toBeDefined();expect(right).toBeDefined();expect(lever).toBeDefined();
+  const lb=new T.Box3().setFromObject(left!),rb=new T.Box3().setFromObject(right!),handle=new T.Box3().setFromObject(lever!);
+  expect((rb.min.x-lb.max.x)*32).toBeGreaterThanOrEqual(14);
+  expect(handle.min.x*32).toBeGreaterThan(617);
+  expect(handle.max.y*32).toBeGreaterThan(55);
+  expect(g.animations).toEqual([]);
+ });
  it('owns finite bounded geometry and releases its resources once',()=>{
   const g=make(),geometries=new Set<T.BufferGeometry>(),materials=new Set<T.Material>();let vertices=0;
   g.traverse(o=>{if(o instanceof T.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material])materials.add(m);const p=o.geometry.getAttribute('position');vertices+=p.count;for(const n of p.array)expect(Number.isFinite(n)).toBe(true);}});

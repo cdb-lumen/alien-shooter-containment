@@ -86,21 +86,47 @@ export function relayRacksRoom():T.Group{
     }
    }
   }else{
-   // Squat central drum feeds the north trunk. South bridge has a physical gap.
-   add(g,new T.CylinderGeometry(37/32,37/32,44/32,16).translate(x/32,30/32,(z-17)/32),amber,'relay-distribution-drum');
-   box(g,x,57,z-17,84,10,70,rail);
-   for(const dz of [-34,-2]){
-    box(g,x,64,z+dz,68,4,8,pale);
-    for(const dx of [-26,0,26])box(g,x+dx,67,z+dz,8,3,8,dark);
+   // Exposed reel, circular retaining flanges and a split strain-relief crown.
+   // The former square lid hid the drum at the shipping camera angle.
+   add(g,new T.CylinderGeometry(33/32,33/32,40/32,16).translate(x/32,32/32,(z-26)/32),amber,'relay-distribution-drum');
+   const flanges=group('relay-drum-flanges');g.add(flanges);
+   for(const y of [12,54])add(flanges,new T.CylinderGeometry(42/32,42/32,8/32,20).translate(x/32,y/32,(z-26)/32),rail);
+   for(const dx of [-24,24])box(g,x+dx,8,z-26,16,8,68,dark);
+   // Broad ribs tie the two flanges together, leaving the reel visible between.
+   for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+    const dx=Math.cos(angle)*34,dz=Math.sin(angle)*34;
+    pipe(g,[x+dx,16,z-26+dz],[x+dx,50,z-26+dz],3,rail);
    }
-   for(const dx of [-26,0,26])pipe(g,[x+dx,69,z-34],[x+dx,69,z-2],2.2,cyan);
-   // The interrupted coupler is visibly open, not a status light.
+   const fork=group('relay-fork-guides');g.add(fork);
+   for(const side of [-1,1]){
+    // Two ceramic combs with individual dark slots, not a rectangular cover.
+    box(fork,x+side*25,62,z-7,26,8,16,pale);
+    for(const lane of [-1,0,1]){
+     const endX=x+side*25+lane*7;
+     box(fork,endX,67,z-7,4,2,12,dark);
+     const curve=new T.CatmullRomCurve3([[x+lane*5,22,z-73],[x+lane*5,63,z-52],[x+side*16+lane*5,70,z-27],[endX,69,z-7]].map(p=>new T.Vector3(p[0]/32,p[1]/32,p[2]/32)));
+     add(fork,new T.TubeGeometry(curve,10,1.8/32,5,false),cyan);
+    }
+    // Bolted saddles and jacketed tails support the fork and bridge housing.
+    box(g,x+side*25,58,z-7,28,4,20,dark);
+    pipe(g,[x+side*28,19,z+1],[x+side*28,19,z+37],4,dark);
+   }
+   // Separate ceramic jaws expose the missing bridge. The parked handle stays
+   // on the right housing, so no new interaction or success state is implied.
    const coupler=group('relay-bridge-coupler');g.add(coupler);
-   box(coupler,x-22,24,z+54,26,32,30,rail);
-   box(coupler,x+22,24,z+54,26,32,30,rail);
-   for(const dx of [-12,12])box(coupler,x+dx,41,z+54,6,4,24,pale);
-   box(coupler,x,12,z+54,18,8,20,damage);
-   for(const dx of [-32,32])pipe(g,[x+dx,10,z-74],[x+dx,49,z-47],4,dark);
+   for(const side of [-1,1]){
+    const jaw=group(side<0?'relay-coupler-left':'relay-coupler-right');coupler.add(jaw);
+    box(jaw,x+side*31,12,z+54,28,8,40,rail);
+    box(jaw,x+side*30,28,z+54,24,24,34,dark);
+    box(jaw,x+side*21,41,z+54,10,18,30,pale);
+    for(const dz of [46,62])box(jaw,x+side*12,41,z+dz,10,6,6,amber);
+    for(const dz of [40,68])box(jaw,x+side*36,43,z+dz,8,6,6,rail);
+   }
+   // A low broken cable end below the open jaws continues the severed spur.
+   pipe(coupler,[x,8,z+78],[x-5,14,z+67],3,damage);
+   const lever=group('relay-manual-lever');coupler.add(lever);
+   pipe(lever,[x+32,37,z+42],[x+32,62,z+58],3,rail);
+   pipe(lever,[x+23,62,z+58],[x+41,62,z+58],4,amber);
   }
  }
  const channels=group('relay-flush-channels');
