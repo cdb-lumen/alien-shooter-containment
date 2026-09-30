@@ -16,21 +16,54 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
   root.name='safety-recorder';
   b('sealed-base',0,.15,0,4.8,.3,4.15,ivory);
   b('recorder-body',0,.72,-.13,4.35,1.14,3.5,ivory);
-  // An open dark recess and raised rim keep real spool geometry visible from the shipping camera.
-  b('inspection-window',-.2,1.31,.1,3.35,.08,2.45,dark);
+  // A dark gasket seats the inspection opening. The exposed tape path and
+  // concentric reel layers remain readable without transparent sorting layers.
+  b('inspection-gasket',-.2,1.305,-.05,3.72,.07,2.55,steel);
+  b('inspection-window',-.2,1.35,-.05,3.35,.035,2.27,dark);
   for(const [name,x] of [['left',-1.02],['right',.64]] as const){
    const spool=new T.Group();spool.name=`record-spool-${name}`;cell.add(spool);
-   rod(spool,v(x,1.34,.1),v(x,1.49,.1),.64,.64,copper);
-   for(const y of [1.36,1.49]){const rim=ring(spool,x,y,.1,.65,.055,ivory);rim.rotation.x=Math.PI/2;}
-   rod(spool,v(x,1.34,.1),v(x,1.56,.1),.13,.13,steel);
+   rod(spool,v(x,1.37,-.16),v(x,1.52,-.16),.64,.64,copper);
+   for(const y of [1.39,1.52]){const rim=ring(spool,x,y,-.16,.65,.055,ivory);rim.rotation.x=Math.PI/2;}
+   const winding=ring(spool,x,1.525,-.16,.43,.035,dark);winding.rotation.x=Math.PI/2;
+   rod(spool,v(x,1.37,-.16),v(x,1.59,-.16),.13,.13,steel);
   }
-  for(const x of [-1.98,1.59])b('window-rim',x,1.4,.1,.14,.22,2.7,ivory);
-  for(const z of [-1.23,1.43])b('window-rim',-.2,1.4,z,3.7,.22,.14,ivory);
-  b('timestamp-plate',-.6,1.34,1.68,1.55,.1,.3,copper);
-  b('seal',.42,1.38,1.68,.24,.16,.3,orange);
+  b('record-tape-span',-.19,1.48,.49,1.66,.075,.07,copper);
+  for(const x of [-1.02,.64])rod(cell,v(x,1.37,.65),v(x,1.56,.65),.09,.09,ivory);
+  for(const x of [-1.98,1.59])b('window-rim',x,1.4,-.05,.14,.22,2.7,ivory);
+  for(const z of [-1.38,1.28])b('window-rim',-.2,1.4,z,3.7,.22,.14,ivory);
+  b('timestamp-sill',-.2,1.28,1.7,3.7,.24,.7,ivory);
+  b('timestamp-plate',-.3,1.43,1.69,3.15,.08,.59,copper);
+  const lines=['LOCAL RECORD','BEFORE AWAKENING'];
+  const legendMaterial=ivory;
+  if(typeof document!=='undefined'){
+   const canvas=document.createElement('canvas');canvas.width=768;canvas.height=160;
+   const context=canvas.getContext('2d');
+   if(context){
+    context.fillStyle='#c6b18b';context.fillRect(0,0,768,160);
+    context.fillStyle='#242c2b';context.font='bold 54px monospace';context.textAlign='center';context.textBaseline='middle';
+    lines.forEach((line,i)=>context.fillText(line,384,42+i*76));
+    // Neutral swatch preserves the original ivory color on every non-label face.
+    context.fillStyle='#ffffff';context.fillRect(0,0,16,16);
+    const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;
+    texture.generateMipmaps=false;texture.minFilter=T.LinearFilter;
+    legendMaterial.map=texture;legendMaterial.addEventListener('dispose',()=>texture.dispose());
+   }
+  }
+  const legend=new T.Mesh(new T.PlaneGeometry(2.96,.52),legendMaterial);
+  legend.name='timestamp-legend';legend.userData.lines=lines;legend.rotation.x=-Math.PI/2;legend.position.set(-.3,1.475,1.69);cell.add(legend);
+  b('seal-strap',1.47,1.44,1.63,.15,.1,.79,orange);
+  b('seal',1.47,1.52,1.88,.28,.1,.22,copper);
   const lever=rod(cell,v(1.99,1.05,.65),v(1.99,1.8,1.06),.085,.085,copper);lever.name='manual-test-lever';
   b('lever-grip',1.99,1.82,1.06,.42,.18,.23,orange);
   b('steady-local-lamp',-1.85,1.35,1.7,.2,.12,.23,lamp);
+  cell.traverse(o=>{
+   if(o instanceof T.Mesh&&o.material===ivory&&o!==legend){
+    // meshParts geometry is shared across rooms. Only remap owned copies.
+    o.geometry=o.geometry.clone();const uv=o.geometry.getAttribute('uv');
+    for(let i=0;i<uv.count;i++)uv.setXY(i,8/768,1-8/160);
+    uv.needsUpdate=true;
+   }
+  });
  }else if(role===1){
   root.name='disconnected-ai-housing';
   b('housing-base',0,.15,0,4.8,.3,4.15,steel);

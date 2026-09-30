@@ -29,7 +29,8 @@ export function safetyInterlockArchitecture(parent:T.Group,w:number,h:number){
  // Narrow flush service channels stay at the perimeter; the main deck remains
  // quiet and open rather than acquiring detached equipment pads or boxes.
  const deck=new T.Group();deck.name='room12-service-deck';shell.add(deck);
- const inlay=(name:string,x:number,z:number,width:number,depth:number,m:T.Material)=>{const mesh=box(deck,x,.006,z,width,.012,depth,m,0);mesh.name=name;mesh.castShadow=false;};
+ // Slot faces sit above the channel, never coplanar with its top face.
+ const inlay=(name:string,x:number,z:number,width:number,depth:number,m:T.Material)=>{const slot=name==='channel-slot';const mesh=box(deck,x,slot?.018:.006,z,width,slot?.004:.012,depth,m,0);mesh.name=name;mesh.castShadow=false;};
  for(const z of [1.75,h-1.75]){
   inlay('service-channel',w/2,z,w-2,.52,metal);
   for(let x=1.2;x<w-1;x+=.42)inlay('channel-slot',x,z,.065,.36,dark);

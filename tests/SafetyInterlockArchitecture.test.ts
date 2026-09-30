@@ -11,6 +11,12 @@ describe('Room12 insulated shell',()=>{
   for(const name of ['ceramic-wall-panel','service-channel','room12-isolation-break'])expect(root.getObjectByName(name)).toBeDefined();
   root.traverse(o=>{if(o instanceof T.Mesh){const b=new T.Box3().setFromObject(o,true);if(b.max.y>.025)expect(b.max.z).toBeLessThanOrEqual(0);else {expect(b.min.x).toBeGreaterThanOrEqual(0);expect(b.max.x).toBeLessThanOrEqual(37.5);expect(b.min.z).toBeGreaterThanOrEqual(0);expect(b.max.z).toBeLessThanOrEqual(27.5);}}});
  });
+ it('separates service slot faces from the steel channel tops',()=>{
+  const root=make(),channels:T.Box3[]=[],slots:T.Box3[]=[];
+  root.traverse(o=>{if(o.name==='service-channel')channels.push(new T.Box3().setFromObject(o,true));if(o.name==='channel-slot')slots.push(new T.Box3().setFromObject(o,true));});
+  expect(channels).toHaveLength(2);expect(slots.length).toBeGreaterThan(100);
+  for(const slot of slots){const channel=channels.find(c=>c.min.z<=slot.min.z&&c.max.z>=slot.max.z)!;expect(channel).toBeDefined();expect(slot.min.y-channel.max.y).toBeGreaterThan(.001);expect(slot.max.y).toBeLessThan(.025);}
+ });
  it('keeps local materials disposable without mutating the shared palette',()=>{
   const root=make(),materials=new Set<T.Material>();root.traverse(o=>{if(o instanceof T.Mesh)materials.add(o.material as T.Material);});
   expect(materials.size).toBeLessThanOrEqual(5);

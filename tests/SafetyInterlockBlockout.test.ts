@@ -16,6 +16,50 @@ describe('Room12 rough safety equipment',()=>{
   const ai=model(1);for(const name of ['empty-socket-left','empty-socket-right'])expect(ai.getObjectByName(name)).toBeDefined();
   expect(bounds(ai).min.x-bounds(recorder).max.x).toBeGreaterThanOrEqual(210/32);
  });
+ it('gives the recorder a seated inspection gasket, tape path and sealed pre-awakening plate',()=>{
+  const recorder=model(0);
+  for(const name of ['inspection-gasket','record-tape-span','timestamp-sill','timestamp-legend','seal-strap'])expect(recorder.getObjectByName(name)).toBeDefined();
+  const sill=bounds(recorder.getObjectByName('timestamp-sill')!),plate=bounds(recorder.getObjectByName('timestamp-plate')!);
+  expect(plate.min.x).toBeGreaterThan(sill.min.x);expect(plate.max.x).toBeLessThan(sill.max.x);
+  expect(plate.min.y).toBeLessThanOrEqual(sill.max.y+.02);
+  expect(recorder.getObjectByName('timestamp-legend')!.userData.lines).toEqual(['LOCAL RECORD','BEFORE AWAKENING']);
+ });
+ it('disposes the recorder inscription texture through its owned material',()=>{
+  const fillText=vi.fn(),context={fillRect:vi.fn(),fillText,fillStyle:'',font:'',textAlign:'',textBaseline:''};
+  vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>context})});
+  try{
+   const recorder=model(0),legend=recorder.getObjectByName('timestamp-legend') as T.Mesh;
+   expect(legend).toBeDefined();const material=legend.material as T.MeshStandardMaterial;
+   expect(material.map).toBeInstanceOf(T.CanvasTexture);const spy=vi.spyOn(material.map!,'dispose');
+   expect(fillText.mock.calls.map(c=>c[0])).toEqual(['LOCAL RECORD','BEFORE AWAKENING']);
+   disposeModel(recorder);expect(spy).toHaveBeenCalledTimes(1);
+  }finally{vi.unstubAllGlobals();}
+ });
+ it('shares ivory with the inscription without tinting other geometry or changing the local lamp',()=>{
+  const paints:unknown[][]=[];
+  const context={fillStyle:'',font:'',textAlign:'',textBaseline:'',fillRect(...args:number[]){paints.push([this.fillStyle,...args]);},fillText:vi.fn()};
+  vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>context})});
+  try{
+   const recorder=model(0),legend=recorder.getObjectByName('timestamp-legend') as T.Mesh;
+   const ivory=(recorder.getObjectByName('recorder-body') as T.Mesh).material as T.MeshStandardMaterial;
+   expect(legend.material).toBe(ivory);expect(ivory.color.getHex()).toBe(0xc9c0a3);
+   expect(ivory.metalness).toBe(.12);expect(ivory.roughness).toBe(.72);
+   expect(ivory.map).toBeInstanceOf(T.CanvasTexture);expect(ivory.map!.colorSpace).toBe(T.SRGBColorSpace);
+   expect(ivory.map!.generateMipmaps).toBe(false);expect(ivory.map!.minFilter).toBe(T.LinearFilter);
+   expect(paints.at(-1)).toEqual(['#ffffff',0,0,16,16]);
+   let protectedMeshes=0;
+   recorder.traverse(o=>{if(o instanceof T.Mesh&&o.material===ivory&&o!==legend){
+    protectedMeshes++;const uv=o.geometry.getAttribute('uv');
+    for(let i=0;i<uv.count;i++){expect(uv.getX(i)).toBeCloseTo(8/768,7);expect(uv.getY(i)).toBeCloseTo(1-8/160,7);}
+   }});
+   expect(protectedMeshes).toBeGreaterThan(8);
+   expect(Array.from(legend.geometry.getAttribute('uv').array)).toEqual([0,1,1,1,0,0,1,0]);
+   const lamp=(recorder.getObjectByName('steady-local-lamp') as T.Mesh).material as T.MeshStandardMaterial;
+   expect(lamp).not.toBe(ivory);expect(lamp.name).toBe('room12-local-light');
+   expect(lamp.color.getHex()).toBe(0xd2ba7e);expect(lamp.emissive.getHex()).toBe(0xc8a361);expect(lamp.emissiveIntensity).toBe(.35);
+   disposeModel(recorder);
+  }finally{vi.unstubAllGlobals();}
+ });
  it('leaves a measurable gap between actual copper jaws, with a separate battery',()=>{
   const lower=model(2),left=lower.getObjectByName('contactor-left'),right=lower.getObjectByName('contactor-right');
   expect(left).toBeDefined();expect(right).toBeDefined();
