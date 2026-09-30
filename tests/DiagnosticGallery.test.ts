@@ -1,0 +1,45 @@
+import {describe,it,expect} from 'vitest';
+import * as T from 'three';
+import {readFileSync} from 'node:fs';
+import {STORY_ROOM_TEMPLATES} from '../src/game/roguelike/storyRoomTemplates';
+import {createExpeditionGeometry,canOccupyExpedition,canTraverseExpedition} from '../src/game/world/expeditionGeometry';
+import {environmentArchitecture} from '../src/render/ShipEnvironments';
+import {disposeModel} from '../src/render/meshParts';
+const proposal=JSON.parse(readFileSync('tests/fixtures/diagnostic-gallery-layout.json','utf8'));
+const node={id:'diagnostic-test',templateId:'diagnostic-gallery',depth:10,kind:'combat',next:[],reward:'upgrade'} as const;
+describe('Diagnostic gallery rough placement',()=>{
+ it('integrates exactly the approved three solids, retaining shell and anchors',()=>{
+  const t=STORY_ROOM_TEMPLATES['diagnostic-gallery'];
+  expect(t.voids).toEqual(proposal.solids.map((s:any)=>s.polygon));expect(t.obstacles).toEqual([]);
+  expect(t.boundary).toBeUndefined();expect([t.width,t.height]).toEqual([1200,880]);
+  expect(t.spawn).toEqual(proposal.canonical.spawn);expect(t.exit).toEqual(proposal.canonical.exit);expect(t.breaches).toEqual(proposal.canonical.breaches);
+ });
+ for(const radius of [16,28]){
+  it(`preserves radius ${radius} routes and rejects model interiors`,()=>{
+   const g=createExpeditionGeometry(node);
+   for(const path of Object.values(proposal.routes) as {x:number;y:number}[][])for(let i=1;i<path.length;i++)expect(canTraverseExpedition(g,path[i-1],path[i],radius)).toBe(true);
+   for(const p of [...proposal.canonical.breaches,...Object.values(proposal.activity_points)])expect(canOccupyExpedition(g,p as any,radius)).toBe(true);
+   for(const p of [{x:600,y:150},{x:350,y:440},{x:850,y:440}])expect(canOccupyExpedition(g,p,radius)).toBe(false);
+  });
+ }
+ it('places a physical deck cutaway and two low curved banks in the runtime registration',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'diagnostic-gallery');
+  const parts=world.children.filter(o=>o.name.startsWith('diagnostic-'));
+  expect(parts.length).toBeGreaterThan(20);
+  for(const name of ['diagnostic-physical-ship-cutaway','diagnostic-west-low-console','diagnostic-east-low-console','diagnostic-purge-bus','diagnostic-occupied-cryo-0'])expect(parts.some(o=>o.name===name)).toBe(true);
+  world.updateMatrixWorld(true);
+  for(const part of parts){
+   const b=new T.Box3().setFromObject(part,true);expect(b.min.y).toBeGreaterThanOrEqual(-1e-6);
+   expect(b.max.y).toBeLessThanOrEqual(2.4);
+   const owner=proposal.solids.find((s:any)=>s.id===part.userData.solidId);expect(owner).toBeDefined();
+   // Every transformed vertex, not just an object origin, stays within its solid.
+   const polygon=owner.polygon;
+   const inside=(x:number,y:number)=>{let c=false;for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){const a=polygon[i],b=polygon[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)c=!c;}return c;};
+   part.traverse(o=>{if(o instanceof T.Mesh){const pos=o.geometry.getAttribute('position');for(let i=0;i<pos.count;i++){const p=new T.Vector3().fromBufferAttribute(pos,i).applyMatrix4(o.matrixWorld);expect(inside(p.x*32,p.z*32)).toBe(true);}}});
+  }
+  disposeModel(world);
+ });
+ it('does not register Room11 models into Room12',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'safety-interlock-station');expect(world.children.some(o=>o.name.startsWith('diagnostic-'))).toBe(false);disposeModel(world);
+ });
+});
