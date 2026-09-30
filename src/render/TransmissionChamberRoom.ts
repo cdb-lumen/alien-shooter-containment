@@ -9,6 +9,7 @@ export function transmissionChamberRoom():T.Group{
  const room=new T.Group();room.name='authored-transmission-chamber';
  const mat=(name:string,color:number,metalness=.25,roughness=.78)=>{const m=new T.MeshStandardMaterial({color,metalness,roughness});m.name=name;m.userData.actorMaterial=true;return m;};
  const steel=mat('transmission-alloy',0x748590,.65,.48),ceramic=mat('transmission-ceramic',0xbec5c3,.08,.7),dark=mat('transmission-housing',0x202f38,.4,.8),deck=mat('transmission-deck',0x303e47,.3,.86),blue=mat('transmission-indicator',0x8abacb,.1,.6);
+ const machined=mat('transmission-machined-alloy',0x9baab0,.78,.3);
  const seam=mat('transmission-deck-seam',0x26343c,.3,.85),inlay=mat('transmission-deck-inlay',0x475961,.35,.8);
  blue.emissive.setHex(0x315965);blue.emissiveIntensity=.25;
  const mesh=(owner:T.Group,g:T.BufferGeometry,m:T.Material,x=0,y=0,z=0)=>{const o=new T.Mesh(g,m);o.position.set(x/U,y/U,z/U);o.castShadow=true;o.receiveShadow=true;o.userData.bakedEnvironment=true;owner.add(o);return o;};
@@ -69,6 +70,14 @@ export function transmissionChamberRoom():T.Group{
    cylinder(g,600,22,440,27,2,dark);
    const lip=mesh(g,new T.TorusGeometry(30/U,4/U,8,32),ceramic,600,43,440);lip.rotation.x=-Math.PI/2;
    cylinder(g,600,27,440,9,8,blue);
+   const collar=new T.Group();collar.name='feed-alloy-collar';g.add(collar);
+   for(const y of [20,36]){
+    const band=mesh(collar,new T.TorusGeometry(30/U,2/U,6,32),machined,600,y,440);band.rotation.x=-Math.PI/2;
+   }
+   for(let i=0;i<6;i++){
+    const a=i*Math.PI/3;
+    box(collar,600+30*Math.cos(a),28,440+30*Math.sin(a),4,12,4,dark);
+   }
    for(let i=0;i<6;i++){
     const a=i*Math.PI/3,x=600+40*Math.cos(a),z=440+40*Math.sin(a);
     cylinder(g,x,24,z,5,6,steel);
@@ -77,12 +86,27 @@ export function transmissionChamberRoom():T.Group{
    for(const x of [520,680]){box(g,x,13,75,28,10,50,steel);box(g,x,57,75,12,78,12,steel);}
    box(g,600,95,75,174,12,18,steel);
    rod(g,[526,20,75],[674,90,75],4,dark);rod(g,[674,20,75],[526,90,75],4,dark);
-   // Shallow concave dish faces the arena. Its entire projection stays on the truss base.
-   const dish=mesh(g,new T.LatheGeometry([[0,0],[18,1],[40,5],[60,11],[76,18]].map(([r,h])=>new T.Vector2(r/U,h/U)),32),ceramic,600,112,60);
-   dish.rotation.x=Math.PI/2;dish.material=ceramic;
-   // Back side gets a separate owned shell, avoiding double-sided transparent passes.
-   const back=mesh(g,dish.geometry.clone(),steel,600,112,58);back.rotation.x=Math.PI/2;back.scale.y=-1;
-   rod(g,[600,112,62],[600,112,98],5,steel);box(g,600,112,100,14,14,12,blue);
+   // The concave ceramic face points south into the arena, with a closed alloy back.
+   const reflector=new T.Group();reflector.name='dish-reflector';g.add(reflector);
+   const dish=mesh(reflector,new T.LatheGeometry([[0,0],[18,1],[40,5],[60,11],[76,18]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),ceramic,600,112,84);
+   dish.rotation.x=-Math.PI/2;
+   const back=mesh(reflector,new T.LatheGeometry([[76,18],[79,16],[61,8],[40,2],[18,-2],[0,-3]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),steel,600,112,84);back.rotation.x=-Math.PI/2;
+   const rim=new T.Group();rim.name='dish-rim';g.add(rim);
+   mesh(rim,new T.TorusGeometry(76/U,3/U,8,48),machined,600,112,66);
+   // Side bearings and cheek plates join the reflector to the original grounded truss.
+   const gimbal=new T.Group();gimbal.name='dish-gimbal';g.add(gimbal);
+   for(const x of [517,683]){
+    box(gimbal,x,100,75,10,32,20,dark);
+    const bearing=cylinder(gimbal,x,112,75,11,12,machined);bearing.rotation.z=Math.PI/2;
+    box(gimbal,x,89,75,18,6,26,steel);
+   }
+   const receiver=new T.Group();receiver.name='dish-receiver-support';g.add(receiver);
+   for(const angle of [Math.PI/2,Math.PI*7/6,Math.PI*11/6]){
+    rod(receiver,[600+72*Math.cos(angle),112+72*Math.sin(angle),67],[600,112,101],2.4,machined);
+   }
+   rod(receiver,[600,112,84],[600,112,100],4,dark);
+   const horn=mesh(receiver,new T.CylinderGeometry(8/U,5/U,12/U,12),machined,600,112,99);horn.rotation.x=Math.PI/2;
+   box(receiver,600,112,106,9,9,2,blue);
   }else{
    box(g,925,23,652.5,138,30,55,dark);
    for(const x of [862,988])box(g,x,25,652.5,10,32,51,ceramic);

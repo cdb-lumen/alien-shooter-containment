@@ -55,6 +55,16 @@ describe('Room10 rough placement',()=>{
    if(m instanceof T.MeshStandardMaterial){expect(m.emissiveIntensity).toBeLessThanOrEqual(m.name==='transmission-indicator'?.25:1);expect(m.map).toBeNull();}
   }});disposeModel(room);
  });
+ it('faces the dish into the room and joins its rim to a supported receiver',()=>{
+  const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
+  for(const name of ['dish-reflector','dish-rim','dish-gimbal','dish-receiver-support','feed-alloy-collar'])expect(room.getObjectByName(name),name).toBeDefined();
+  const ray=new T.Raycaster(new T.Vector3(630/32,112/32,109/32),new T.Vector3(0,0,-1));
+  const hits=ray.intersectObject(room.getObjectByName('antenna-truss')!,true);
+  expect(hits.length).toBeGreaterThan(0);
+  expect((hits[0].object as T.Mesh).material).toHaveProperty('name','transmission-ceramic');
+  expect(hits[0].face!.normal.clone().transformDirection(hits[0].object.matrixWorld).z).toBeGreaterThan(.5);
+  disposeModel(room);
+ });
  it('releases batch scratch geometry once and retains shadow ownership',()=>{
   const disposal=vi.spyOn(T.BufferGeometry.prototype,'dispose');
   try{
