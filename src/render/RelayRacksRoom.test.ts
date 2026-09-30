@@ -13,7 +13,34 @@ const expected=[[300,160,100,170],[300,550,100,170],[800,160,100,170],[800,550,1
 const owned:T.Group[]=[];
 const make=()=>{const g=authoredRoom('relay-racks',template);expect(g).not.toBeNull();owned.push(g!);g!.updateMatrixWorld(true);return g!;};
 afterEach(()=>{for(const g of owned)disposeModel(g);owned.length=0;});
-describe('Room9 stage2 production placement',()=>{
+describe('Room9 room visuals and retained placement',()=>{
+ it('uses dark rack rails, pale ceramic and restrained non-animated link indicators',()=>{
+  const g=make(),materials=new Map<string,T.MeshStandardMaterial>();
+  g.traverse(o=>{if(o instanceof T.Mesh&&o.material instanceof T.MeshStandardMaterial)materials.set(o.material.name,o.material);});
+  const rail=materials.get('relay-rail-metal')!,ceramic=materials.get('relay-ceramic')!,fiber=materials.get('relay-fiber')!;
+  expect(rail.color.getHSL({h:0,s:0,l:0}).l).toBeLessThan(.18);
+  expect(rail.metalness).toBeGreaterThanOrEqual(.65);
+  expect(ceramic.metalness).toBeLessThan(.2);
+  expect(ceramic.color.getHSL({h:0,s:0,l:0}).l).toBeGreaterThan(.4);
+  expect(fiber.emissiveIntensity).toBeLessThanOrEqual(.3);
+ });
+ it('adds perimeter service panels and flush deck seams without occupying the aisle',()=>{
+  const g=make(),panels=g.getObjectByName('relay-shell-panels'),seams=g.getObjectByName('relay-deck-seams');
+  expect(panels).toBeDefined();expect(seams).toBeDefined();
+  panels!.traverse(o=>{if(o instanceof T.Mesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){
+   const x=p.getX(i)*32,z=p.getZ(i)*32;expect(x<=0||x>=1200||z<=0||z>=880).toBe(true);
+  }}});
+  expect(new T.Box3().setFromObject(seams!).max.y*32).toBeLessThanOrEqual(.1);
+ });
+ it('gives each rack a low cooling plenum inside its existing footprint',()=>{
+  const g=make();for(let i=0;i<4;i++){
+   const rack=g.getObjectByName(`relay-fixture-${i}`)!,plenum=rack.getObjectByName(`relay-cooling-plenum-${i}`);
+   expect(plenum).toBeDefined();const b=new T.Box3().setFromObject(plenum!);
+   expect(b.max.y*32).toBeLessThanOrEqual(25);
+   expect(b.min.x*32).toBeGreaterThanOrEqual(expected[i][0]);expect(b.max.x*32).toBeLessThanOrEqual(expected[i][0]+expected[i][2]);
+   expect(b.min.z*32).toBeGreaterThanOrEqual(expected[i][1]);expect(b.max.z*32).toBeLessThanOrEqual(expected[i][1]+expected[i][3]);
+  }
+ });
  it('uses the reviewed five footprints without changing envelope or anchors',()=>{
   expect(template.obstacles.map(r=>[r.x,r.y,r.width,r.height])).toEqual(expected);
   expect([template.width,template.height]).toEqual([1200,880]);
