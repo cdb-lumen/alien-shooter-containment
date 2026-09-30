@@ -1,0 +1,7 @@
+{
+  "owned_capture": "foreground room-evidence.mjs, server/browser/temp removed by finally before exit 0",
+  "remaining_relevant_processes": [
+    "1074861    1039 chernod+ node /home/chernodubv/dev/.worktrees/containment-boons/node_modules/.bin/vite --host 127.0.0.1 --port 5193"
+  ],
+  "unowned_process": "PID1074861, preexisting containment-boons Vite port5193, untouched"
+}
