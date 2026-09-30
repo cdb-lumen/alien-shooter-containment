@@ -1,9 +1,0 @@
-
- RUN  v4.1.10 /home/chernodubv/dev/.cron-worktrees/containment-rooms/diagnostic-gallery-v3
-
-
- Test Files  3 passed (3)
-      Tests  39 passed (39)
-   Start at  20:23:06
-   Duration  1.32s (transform 821ms, setup 0ms, import 1.17s, tests 1.09s, environment 0ms)
-
