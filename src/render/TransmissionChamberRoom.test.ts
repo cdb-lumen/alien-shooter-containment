@@ -55,10 +55,32 @@ describe('Room10 rough placement',()=>{
    if(m instanceof T.MeshStandardMaterial){expect(m.emissiveIntensity).toBeLessThanOrEqual(m.name==='transmission-indicator'?.25:1);expect(m.map).toBeNull();}
   }});disposeModel(room);
  });
+ it('keeps the complete antenna below the shipping desktop top edge',()=>{
+  const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
+  try{
+   const antenna=room.getObjectByName('antenna-truss')!;
+   // Fixed shipping-camera samples from entry, north and south, not an overview fit.
+   for(const [x,z] of [[14.944444444444445,32.75],[18.749895208512196,31.924150746901642],[18.75,33.575826873693]]){
+    const camera=new T.OrthographicCamera(-11*1280/900,11*1280/900,11,-11,.1,120);
+    camera.position.set(x,26,z);camera.quaternion.set(-.4527600968822728,0,0,.8916323764148287);camera.updateMatrixWorld(true);
+    antenna.traverse(o=>{if(!(o instanceof T.Mesh))return;const p=o.geometry.getAttribute('position');
+     for(let i=0;i<p.count;i++){
+      const v=new T.Vector3().fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld).project(camera);
+      expect(v.y,'antenna must remain in frame, dish hardware must clear top by 12 pixels').toBeLessThanOrEqual(o.parent===antenna?1:1-24/900);
+     }
+    });
+   }
+   const bounds=new T.Box3().setFromObject(antenna);
+   expect(bounds.min.y).toBeCloseTo(0,5);expect(bounds.max.y*32).toBeLessThanOrEqual(70);
+   const size=new T.Box3().setFromObject(room.getObjectByName('dish-rim')!).getSize(new T.Vector3());
+   expect(size.x/size.y,'retain round dish proportions').toBeCloseTo(1,4);
+   expect(size.x*32,'dish must remain larger than a person').toBeGreaterThan(48);
+  }finally{disposeModel(room);}
+ });
  it('faces the dish into the room and joins its rim to a supported receiver',()=>{
   const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
   for(const name of ['dish-reflector','dish-rim','dish-gimbal','dish-receiver-support','feed-alloy-collar'])expect(room.getObjectByName(name),name).toBeDefined();
-  const ray=new T.Raycaster(new T.Vector3(630/32,112/32,109/32),new T.Vector3(0,0,-1));
+  const ray=new T.Raycaster(room.getObjectByName('antenna-hardware')!.localToWorld(new T.Vector3(630/32,112/32,109/32)),new T.Vector3(0,0,-1));
   const hits=ray.intersectObject(room.getObjectByName('antenna-truss')!,true);
   expect(hits.length).toBeGreaterThan(0);
   expect((hits[0].object as T.Mesh).material).toHaveProperty('name','transmission-ceramic');
@@ -69,10 +91,11 @@ describe('Room10 rough placement',()=>{
   const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
   try{
    const reflector=room.getObjectByName('dish-reflector')!;
+   const hardware=room.getObjectByName('antenna-hardware')!;
    const ceramic=reflector.children.find(o=>o instanceof T.Mesh&&(o.material as T.Material).name==='transmission-ceramic') as T.Mesh;
    const p=ceramic.geometry.getAttribute('position'),rings=new Map<number,number[]>();
    for(let i=0;i<p.count;i++){
-    const v=new T.Vector3().fromBufferAttribute(p,i).applyMatrix4(ceramic.matrixWorld).multiplyScalar(32);
+    const v=hardware.worldToLocal(new T.Vector3().fromBufferAttribute(p,i).applyMatrix4(ceramic.matrixWorld)).multiplyScalar(32);
     const radius=Math.round(Math.hypot(v.x-600,v.y-112));
     const depths=rings.get(radius)??[];depths.push(v.z);rings.set(radius,depths);
    }
@@ -80,11 +103,11 @@ describe('Room10 rough placement',()=>{
    for(let i=1;i<radii.length;i++)expect(Math.max(...rings.get(radii[i-1])!),`radius ${radii[i-1]} must be recessed behind ${radii[i]}`).toBeLessThan(Math.min(...rings.get(radii[i])!));
    expect(Math.min(...rings.get(76)!)-Math.max(...rings.get(0)!)).toBeGreaterThan(15);
    const rim=room.getObjectByName('dish-rim')!,rimBounds=new T.Box3().setFromObject(rim);
-   expect(rimBounds.getCenter(new T.Vector3()).z*32).toBeCloseTo(rings.get(76)![0],4);
+   expect(hardware.worldToLocal(rimBounds.getCenter(new T.Vector3())).z*32).toBeCloseTo(rings.get(76)![0],4);
    expect(Math.max(...rings.get(76)!)).toBeLessThan(99);
    for(const radius of [10,30,50,70]){
-    const front=new T.Raycaster(new T.Vector3((600+radius)/32,112/32,109/32),new T.Vector3(0,0,-1)).intersectObject(reflector,true)[0];
-    const rear=new T.Raycaster(new T.Vector3((600+radius)/32,112/32,35/32),new T.Vector3(0,0,1)).intersectObject(reflector,true)[0];
+    const front=new T.Raycaster(hardware.localToWorld(new T.Vector3((600+radius)/32,112/32,109/32)),new T.Vector3(0,0,-1)).intersectObject(reflector,true)[0];
+    const rear=new T.Raycaster(hardware.localToWorld(new T.Vector3((600+radius)/32,112/32,35/32)),new T.Vector3(0,0,1)).intersectObject(reflector,true)[0];
     expect((front.object as T.Mesh).material).toHaveProperty('name','transmission-ceramic');
     expect((rear.object as T.Mesh).material).toHaveProperty('name','transmission-alloy');
     expect(front.point.z).toBeGreaterThan(rear.point.z);

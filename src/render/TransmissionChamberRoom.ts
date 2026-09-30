@@ -83,6 +83,14 @@ export function transmissionChamberRoom():T.Group{
     cylinder(g,x,24,z,5,6,steel);
    }
   }else if(f.id==='antenna-truss'){
+   // Compact the complete round dish assembly on the south edge of its existing
+   // plinth. Keep the collision reservation and shipping camera unchanged.
+   const plinth=g;
+   const hardware=new T.Group();hardware.name='antenna-hardware';plinth.add(hardware);
+   hardware.scale.setScalar(.32);
+   hardware.position.set(600*(1-.32)/U,8*(1-.32)/U,(99-75*.32)/U);
+   {
+   const g=hardware;
    for(const x of [520,680]){box(g,x,13,75,28,10,50,steel);box(g,x,57,75,12,78,12,steel);}
    box(g,600,95,75,174,12,18,steel);
    rod(g,[526,20,75],[674,90,75],4,dark);rod(g,[674,20,75],[526,90,75],4,dark);
@@ -109,6 +117,7 @@ export function transmissionChamberRoom():T.Group{
    rod(receiver,[600,112,48],[600,112,100],4,dark);
    const horn=mesh(receiver,new T.CylinderGeometry(8/U,5/U,12/U,12),machined,600,112,99);horn.rotation.x=Math.PI/2;
    box(receiver,600,112,106,9,9,2,blue);
+   }
   }else{
    box(g,925,23,652.5,138,30,55,dark);
    for(const x of [862,988])box(g,x,25,652.5,10,32,51,ceramic);
