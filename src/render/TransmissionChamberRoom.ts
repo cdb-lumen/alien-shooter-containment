@@ -88,9 +88,11 @@ export function transmissionChamberRoom():T.Group{
    rod(g,[526,20,75],[674,90,75],4,dark);rod(g,[674,20,75],[526,90,75],4,dark);
    // The concave ceramic face points south into the arena, with a closed alloy back.
    const reflector=new T.Group();reflector.name='dish-reflector';g.add(reflector);
-   const dish=mesh(reflector,new T.LatheGeometry([[0,0],[18,1],[40,5],[60,11],[76,18]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),ceramic,600,112,84);
+   // This rotation maps profile height to northward depth. Recess the center
+   // to z=48 behind the unchanged z=66 rim, away from the south-side receiver.
+   const dish=mesh(reflector,new T.LatheGeometry([[0,36],[18,35],[40,31],[60,25],[76,18]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),ceramic,600,112,84);
    dish.rotation.x=-Math.PI/2;
-   const back=mesh(reflector,new T.LatheGeometry([[76,18],[79,16],[61,8],[40,2],[18,-2],[0,-3]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),steel,600,112,84);back.rotation.x=-Math.PI/2;
+   const back=mesh(reflector,new T.LatheGeometry([[76,18],[79,20],[61,28],[40,34],[18,38],[0,39]].map(([r,h])=>new T.Vector2(r/U,h/U)),48),steel,600,112,84);back.rotation.x=-Math.PI/2;
    const rim=new T.Group();rim.name='dish-rim';g.add(rim);
    mesh(rim,new T.TorusGeometry(76/U,3/U,8,48),machined,600,112,66);
    // Side bearings and cheek plates join the reflector to the original grounded truss.
@@ -104,7 +106,7 @@ export function transmissionChamberRoom():T.Group{
    for(const angle of [Math.PI/2,Math.PI*7/6,Math.PI*11/6]){
     rod(receiver,[600+72*Math.cos(angle),112+72*Math.sin(angle),67],[600,112,101],2.4,machined);
    }
-   rod(receiver,[600,112,84],[600,112,100],4,dark);
+   rod(receiver,[600,112,48],[600,112,100],4,dark);
    const horn=mesh(receiver,new T.CylinderGeometry(8/U,5/U,12/U,12),machined,600,112,99);horn.rotation.x=Math.PI/2;
    box(receiver,600,112,106,9,9,2,blue);
   }else{

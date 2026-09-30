@@ -65,6 +65,32 @@ describe('Room10 rough placement',()=>{
   expect(hits[0].face!.normal.clone().transformDirection(hits[0].object.matrixWorld).z).toBeGreaterThan(.5);
   disposeModel(room);
  });
+ it('recesses the ceramic center behind the rim and receiver with alloy behind the face',()=>{
+  const room=authoredRoom('transmission-chamber',template)!;room.updateMatrixWorld(true);
+  try{
+   const reflector=room.getObjectByName('dish-reflector')!;
+   const ceramic=reflector.children.find(o=>o instanceof T.Mesh&&(o.material as T.Material).name==='transmission-ceramic') as T.Mesh;
+   const p=ceramic.geometry.getAttribute('position'),rings=new Map<number,number[]>();
+   for(let i=0;i<p.count;i++){
+    const v=new T.Vector3().fromBufferAttribute(p,i).applyMatrix4(ceramic.matrixWorld).multiplyScalar(32);
+    const radius=Math.round(Math.hypot(v.x-600,v.y-112));
+    const depths=rings.get(radius)??[];depths.push(v.z);rings.set(radius,depths);
+   }
+   const radii=[0,18,40,60,76];
+   for(let i=1;i<radii.length;i++)expect(Math.max(...rings.get(radii[i-1])!),`radius ${radii[i-1]} must be recessed behind ${radii[i]}`).toBeLessThan(Math.min(...rings.get(radii[i])!));
+   expect(Math.min(...rings.get(76)!)-Math.max(...rings.get(0)!)).toBeGreaterThan(15);
+   const rim=room.getObjectByName('dish-rim')!,rimBounds=new T.Box3().setFromObject(rim);
+   expect(rimBounds.getCenter(new T.Vector3()).z*32).toBeCloseTo(rings.get(76)![0],4);
+   expect(Math.max(...rings.get(76)!)).toBeLessThan(99);
+   for(const radius of [10,30,50,70]){
+    const front=new T.Raycaster(new T.Vector3((600+radius)/32,112/32,109/32),new T.Vector3(0,0,-1)).intersectObject(reflector,true)[0];
+    const rear=new T.Raycaster(new T.Vector3((600+radius)/32,112/32,35/32),new T.Vector3(0,0,1)).intersectObject(reflector,true)[0];
+    expect((front.object as T.Mesh).material).toHaveProperty('name','transmission-ceramic');
+    expect((rear.object as T.Mesh).material).toHaveProperty('name','transmission-alloy');
+    expect(front.point.z).toBeGreaterThan(rear.point.z);
+   }
+  }finally{disposeModel(room);}
+ });
  it('releases batch scratch geometry once and retains shadow ownership',()=>{
   const disposal=vi.spyOn(T.BufferGeometry.prototype,'dispose');
   try{
