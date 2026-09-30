@@ -24,6 +24,31 @@ describe('Room12 rough safety equipment',()=>{
   expect(plate.min.y).toBeLessThanOrEqual(sill.max.y+.02);
   expect(recorder.getObjectByName('timestamp-legend')!.userData.lines).toEqual(['LOCAL RECORD','BEFORE AWAKENING']);
  });
+ it('closes the entire reel mechanism beneath a framed inspection pane',()=>{
+  const recorder=model(0),pane=recorder.getObjectByName('sealed-inspection-pane') as T.Mesh;
+  expect(pane).toBeDefined();const cover=bounds(pane);
+  for(const name of ['record-spool-left','record-spool-right','record-tape-span']){
+   const mechanism=bounds(recorder.getObjectByName(name)!);
+   expect(cover.min.y).toBeGreaterThan(mechanism.max.y);
+   expect(cover.min.x).toBeLessThan(mechanism.min.x);expect(cover.max.x).toBeGreaterThan(mechanism.max.x);
+   expect(cover.min.z).toBeLessThan(mechanism.min.z);expect(cover.max.z).toBeGreaterThan(mechanism.max.z);
+  }
+  const glass=pane.material as T.MeshStandardMaterial;
+  expect(glass.transparent).toBe(true);expect(glass.depthWrite).toBe(false);
+  expect(recorder.getObjectByName('lid-seal-bridge')).toBeDefined();
+  disposeModel(recorder);
+ });
+ for(const batched of [false,true])it(`releases owned recorder geometry once, batched=${batched}`,()=>{
+  const recorder=model(0),control=model(0,''),shared=new Set<T.BufferGeometry>();
+  control.traverse(o=>{if(o instanceof T.Mesh)shared.add(o.geometry);});
+  const owned=new Set<T.BufferGeometry>();recorder.traverse(o=>{if(o instanceof T.Mesh&&((o.material as T.Material).name==='room12-ivory'||o.name==='sealed-inspection-pane'))owned.add(o.geometry);});
+  expect(owned.size).toBeGreaterThan(8);
+  const ownedSpies=[...owned].map(g=>vi.spyOn(g,'dispose')),sharedSpies=[...shared].map(g=>vi.spyOn(g,'dispose'));
+  const world=new T.Group();appendEnvironment(world,recorder);
+  if(batched){const renderer=Object.create(DepthRenderer.prototype) as {world:T.Group;floorMaterial:T.Material;bakeWorld():void};renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();renderer.floorMaterial.dispose();for(const spy of ownedSpies)expect(spy).toHaveBeenCalledTimes(1);}
+  disposeModel(world);for(const spy of ownedSpies)expect(spy).toHaveBeenCalledTimes(1);
+  for(const spy of sharedSpies)expect(spy).not.toHaveBeenCalled();vi.restoreAllMocks();disposeModel(control);
+ });
  it('disposes the recorder inscription texture through its owned material',()=>{
   const fillText=vi.fn(),context={fillRect:vi.fn(),fillText,fillStyle:'',font:'',textAlign:'',textBaseline:''};
   vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>context})});

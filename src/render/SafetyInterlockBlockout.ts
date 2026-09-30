@@ -16,21 +16,27 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
   root.name='safety-recorder';
   b('sealed-base',0,.15,0,4.8,.3,4.15,ivory);
   b('recorder-body',0,.72,-.13,4.35,1.14,3.5,ivory);
-  // A dark gasket seats the inspection opening. The exposed tape path and
-  // concentric reel layers remain readable without transparent sorting layers.
+  // Reuse the sixth palette slot for a single glazed lid, not another material.
+  dark.name='room12-inspection-glass';dark.color.setHex(0x9abfc4);
+  dark.transparent=true;dark.opacity=.28;dark.depthWrite=false;dark.roughness=.16;dark.metalness=.1;
   b('inspection-gasket',-.2,1.305,-.05,3.72,.07,2.55,steel);
-  b('inspection-window',-.2,1.35,-.05,3.35,.035,2.27,dark);
+  b('inspection-window',-.2,1.35,-.05,3.35,.035,2.27,steel);
+  const pane=new T.Mesh(new T.PlaneGeometry(3.58,2.55),dark);
+  pane.name='sealed-inspection-pane';pane.rotation.x=-Math.PI/2;pane.position.set(-.2,1.67,-.05);
+  pane.geometry.userData.environmentUV=true;cell.add(pane);
   for(const [name,x] of [['left',-1.02],['right',.64]] as const){
    const spool=new T.Group();spool.name=`record-spool-${name}`;cell.add(spool);
    rod(spool,v(x,1.37,-.16),v(x,1.52,-.16),.64,.64,copper);
    for(const y of [1.39,1.52]){const rim=ring(spool,x,y,-.16,.65,.055,ivory);rim.rotation.x=Math.PI/2;}
-   const winding=ring(spool,x,1.525,-.16,.43,.035,dark);winding.rotation.x=Math.PI/2;
+   const winding=ring(spool,x,1.525,-.16,.43,.035,steel);winding.rotation.x=Math.PI/2;
    rod(spool,v(x,1.37,-.16),v(x,1.59,-.16),.13,.13,steel);
   }
   b('record-tape-span',-.19,1.48,.49,1.66,.075,.07,copper);
   for(const x of [-1.02,.64])rod(cell,v(x,1.37,.65),v(x,1.56,.65),.09,.09,ivory);
-  for(const x of [-1.98,1.59])b('window-rim',x,1.4,-.05,.14,.22,2.7,ivory);
-  for(const z of [-1.38,1.28])b('window-rim',-.2,1.4,z,3.7,.22,.14,ivory);
+  for(const x of [-1.98,1.59])b('window-rim',x,1.51,-.05,.2,.44,2.8,ivory);
+  for(const z of [-1.38,1.28])b('window-rim',-.2,1.51,z,3.78,.44,.2,ivory);
+  for(const x of [-1.98,1.59])b('lid-hinge',x,1.73,-.9,.3,.12,.4,steel);
+  b('lid-seal-bridge',1.47,1.74,1.27,.27,.09,.66,orange);
   b('timestamp-sill',-.2,1.28,1.7,3.7,.24,.7,ivory);
   b('timestamp-plate',-.3,1.43,1.69,3.15,.08,.59,copper);
   const lines=['LOCAL RECORD','BEFORE AWAKENING'];
@@ -50,6 +56,7 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
    }
   }
   const legend=new T.Mesh(new T.PlaneGeometry(2.96,.52),legendMaterial);
+  legend.geometry.userData.environmentUV=true;
   legend.name='timestamp-legend';legend.userData.lines=lines;legend.rotation.x=-Math.PI/2;legend.position.set(-.3,1.475,1.69);cell.add(legend);
   b('seal-strap',1.47,1.44,1.63,.15,.1,.79,orange);
   b('seal',1.47,1.52,1.88,.28,.1,.22,copper);
@@ -59,7 +66,9 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
   cell.traverse(o=>{
    if(o instanceof T.Mesh&&o.material===ivory&&o!==legend){
     // meshParts geometry is shared across rooms. Only remap owned copies.
-    o.geometry=o.geometry.clone();const uv=o.geometry.getAttribute('uv');
+    o.geometry=o.geometry.clone();
+    // Existing world batching releases owned environment-UV inputs after copying.
+    o.geometry.userData.environmentUV=true;const uv=o.geometry.getAttribute('uv');
     for(let i=0;i<uv.count;i++)uv.setXY(i,8/768,1-8/160);
     uv.needsUpdate=true;
    }
