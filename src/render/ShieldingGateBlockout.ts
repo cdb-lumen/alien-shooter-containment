@@ -92,18 +92,41 @@ export function shieldingGateBlockout(footprint:Footprint,index:number):T.Group{
    collar.rotation.y=Math.PI/2;collar.name=`bearing-collar-${n}`;
   }
   g('end-bearing',84,107,45,10,20,18,SHIELD.jacket);
-  g('lock-pocket',76,28,76,24,36,16,SHIELD.recess);
-  // A tapered wedge seated in a dark pocket, rather than a painted cube.
-  const wedgeGeometry=geometry('shielding-gate-lock-wedge',()=>{
-   const shape=new T.Shape();shape.moveTo(-10/32,-15/32);shape.lineTo(10/32,-15/32);
-   shape.lineTo(6/32,15/32);shape.lineTo(-6/32,15/32);shape.closePath();
-   const result=new T.ExtrudeGeometry(shape,{depth:12/32,bevelEnabled:false});result.translate(0,0,-6/32);return result;
+  // The screw drives a broad traveling nut with a fork fixed to the middle leaf.
+  // Open space beside the fork keeps the shaft readable from the game camera.
+  g('traveling-nut',58,111,45,16,20,20,SHIELD.ochre);
+  g('drive-clevis',58,96,45,12,18,16,SHIELD.jacket);
+  g('nut-contact',58,123,45,12,4,16,SHIELD.contact);
+  // A handwheel sits on the gearbox, not on the traversable threshold.
+  g('wheel-spindle',24,125,45,6,18,6,SHIELD.contact);
+  const wheel=ring(gate,mirror(24)/32,135/32,(gateStart+45)/32,11/32,2.5/32,SHIELD.ochre);
+  wheel.rotation.x=Math.PI/2;wheel.name='manual-wheel';
+  for(const [n,angle] of [0,Math.PI/3,Math.PI*2/3].entries()){
+   const spoke=g(`wheel-spoke-${n}`,24,135,45,20,3,3,SHIELD.jacket);spoke.rotation.y=angle;
+  }
+  // Raised locking bridge transfers force into the end leaf through two legs.
+  // Its top is an open, deep channel with a broad tapered sliding lock.
+  for(const [n,x] of [52,84].entries()){
+   g(`lock-leg-${n}`,x,74,76,8,108,12,SHIELD.jacket);
+   g(`lock-cheek-${n}`,x,130,73,7,16,30,SHIELD.lead);
+   g(`lock-seat-${n}`,x+(n===0?5:-5),127,73,3,5,28,SHIELD.contact);
+  }
+  g('lock-pocket',68,120,73,36,8,32,SHIELD.recess);
+  const wedgeGeometry=geometry('shielding-gate-top-lock-wedge',()=>{
+   const shape=new T.Shape();shape.moveTo(-12/32,-13/32);shape.lineTo(12/32,-13/32);
+   shape.lineTo(8/32,13/32);shape.lineTo(-8/32,13/32);shape.closePath();
+   const result=new T.ExtrudeGeometry(shape,{depth:8/32,bevelEnabled:false});result.translate(0,0,-4/32);return result;
   });
   const wedge=new T.Mesh(wedgeGeometry,SHIELD.ochre);wedge.name='locking-wedge';
-  wedge.position.set(mirror(76)/32,31/32,(gateStart+76)/32);wedge.castShadow=wedge.receiveShadow=true;gate.add(wedge);
-  g('dosimeter-frame',46,59,78,20,14,4,SHIELD.contact);
-  g('dosimeter-well',46,59,80.5,16,10,1.5,SHIELD.recess);
-  g('dosimeter-plate',45,59,81.5,9,6,1,SHIELD.ochre);
+  wedge.rotation.x=-Math.PI/2;
+  wedge.position.set(mirror(68)/32,130/32,(gateStart+73)/32);wedge.castShadow=wedge.receiveShadow=true;gate.add(wedge);
+  g('lock-pull-bar',68,136,66,18,4,5,SHIELD.contact);
+  // A recessed horizontal dosimeter tray can be seen above the leaf stack.
+  g('dosimeter-bracket',30,105,76,26,28,26,SHIELD.jacket);
+  g('dosimeter-frame',30,121,76,28,6,28,SHIELD.contact);
+  g('dosimeter-well',30,125,76,22,3,22,SHIELD.recess);
+  g('dosimeter-plate',28,127,76,11,2,16,SHIELD.ochre);
+  for(let n=0;n<3;n++)g(`dosimeter-scale-${n}`,37,127,71+n*5,3,2,2,SHIELD.contact);
  }
  root.scale.set(footprint.width/(width/32),1,footprint.height/(depth/32));
  root.position.set(footprint.x,0,footprint.y);

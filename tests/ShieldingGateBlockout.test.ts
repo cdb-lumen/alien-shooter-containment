@@ -71,6 +71,22 @@ describe('Room17 rough shield gate',()=>{
    expect(named(model,'bearing-collar-')).toHaveLength(2);
   }
  });
+ it('connects the exposed screw to a traveling nut and a raised open locking yoke',()=>{
+  for(const i of [0,2]){
+   const model=models()[i];model.updateMatrixWorld(true);
+   const bounds=(name:string)=>{const o=model.getObjectByName(name);expect(o,name).toBeDefined();return new T.Box3().setFromObject(o!,true);};
+   const nut=bounds('traveling-nut'),shaft=bounds('screw-shaft');
+   expect(nut.intersectsBox(shaft)).toBe(true);
+   expect(bounds('drive-clevis').intersectsBox(nut)).toBe(true);
+   expect(bounds('lock-pocket').max.y*32).toBeGreaterThan(115);
+   expect(bounds('locking-wedge').getSize(new T.Vector3()).x*32).toBeGreaterThanOrEqual(23);
+   expect(named(model,'lock-cheek-')).toHaveLength(2);
+   expect(named(model,'lock-seat-')).toHaveLength(2);
+   expect(bounds('dosimeter-well').getSize(new T.Vector3()).z*32).toBeGreaterThan(14);
+   expect(bounds('dosimeter-well').min.y*32).toBeGreaterThan(115);
+   expect(named(model,'manual-wheel')).toHaveLength(1);
+  }
+ });
  it('leaves the other containment room on its existing model path',()=>{
   const r=environmentObstacle('containment',{x:0,y:0,width:3,height:8},0,'containment-annulus');
   expect(r.name).toBe('containment-obstacle-0');expect(named(r,'shield-leaf-')).toHaveLength(0);
