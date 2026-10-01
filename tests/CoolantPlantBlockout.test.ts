@@ -11,6 +11,28 @@ const node={id:'coolant-test',templateId:'coolant-plant',depth:12,kind:'combat',
 const footprints=[[300,210,150,150],[750,210,150,150],[300,540,150,150],[750,540,150,150],[550,390,100,100]];
 function bake(world:T.Group){const renderer=Object.create(DepthRenderer.prototype) as {world:T.Group;floorMaterial:T.Material;bakeWorld():void};renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();renderer.floorMaterial.dispose();return world;}
 describe('coolant plant room visuals',()=>{
+ it('builds coaxial volute, coupling and motor with a tangential discharge',()=>{
+  for(const index of [2,3]){
+   const model=coolantPlantBlockout({x:0,y:0,width:4,height:4},index);
+   const volute=model.getObjectByName('pump-volute') as T.Mesh;
+   expect(volute).toBeDefined();expect(volute.geometry.type).toBe('ExtrudeGeometry');
+   const shaft=model.getObjectByName('motor-coupling') as T.Mesh;
+   const motor=model.getObjectByName('pump-motor') as T.Mesh;
+   expect(shaft).toBeDefined();expect(motor).toBeDefined();
+   expect(shaft.position.y).toBe(motor.position.y);expect(shaft.position.z).toBe(motor.position.z);
+   expect(model.getObjectByName('tangential-discharge')).toBeDefined();
+   expect(model.getObjectByName('strainer-cutaway')).toBeDefined();
+   expect(model.getObjectByName('strainer-basket')).toBeDefined();
+  }
+ });
+ it('connects expansion vessels to both exchanger shells inside the retained skids',()=>{
+  for(const index of [0,1]){
+   const model=coolantPlantBlockout({x:0,y:0,width:4,height:4},index);
+   expect(model.getObjectByName('expansion-vessel')).toBeDefined();
+   expect(model.getObjectByName('expansion-branch')).toBeDefined();
+   expect(model.getObjectByName('exchanger-channel-head')).toBeDefined();
+  }
+ });
  it('keeps service covers non-emissive and breaks their finish into grate slots',()=>{
   const services=coolantPlantServices(),materials=new Set<T.MeshStandardMaterial>();
   services.traverse(o=>{if(o instanceof T.Mesh)materials.add(o.material as T.MeshStandardMaterial);});
