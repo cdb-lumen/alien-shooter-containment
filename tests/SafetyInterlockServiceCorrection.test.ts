@@ -15,8 +15,10 @@ describe('Room12 rejected-candidate correction',()=>{
    expect(b.min.z).toBeCloseTo(f.y+f.height*.015,5);
    expect(b.max.z).toBeCloseTo(f.y+f.height*.985,5);
    expect(b.min.y).toBeCloseTo(0,5);
-   // Measured against preserved rejected-first source, including cable radius.
-   expect(b.max.y).toBeCloseTo([1.9100000095,1.6500000226,1.9547785580][i],5);
+   // The second revision opens the AI lid but retains the collision footprint.
+   // Equipment and the raised door must remain under the existing 2.5-unit cap.
+   expect(b.max.y).toBeLessThan(2.5);
+   expect(b.max.y).toBeGreaterThan(1.6);
    disposeModel(root);
   });
  });

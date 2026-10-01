@@ -158,26 +158,26 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
    for(const dx of [-.1,.1])cylinder('receptacle-contact',socket.position.x+dx,.648,1.37,.035,.025,copper,receptacle);
   }
   const plug=new T.Group();plug.name='disconnected-plug';cell.add(plug);
-  plug.add(b('plug-sleeve',1.25,.66,1.37,.86,.49,.68,orange));
-  plug.add(b('plug-collar',.84,.66,1.37,.15,.55,.75,ivory));
+  plug.add(b('plug-sleeve',1.12,.60,1.37,.65,.37,.56,orange));
+  plug.add(b('plug-collar',.81,.60,1.37,.12,.43,.63,ivory));
   const pins=new T.Group();pins.name='exposed-plug-pins';plug.add(pins);
   for(const z of [1.19,1.37,1.55]){
    const pin=rod(pins,v(.49,.60,z),v(.80,.60,z),.045,.045,copper);pin.name='connector-pin';
   }
-  cable('disconnected-lead',[[1.59,.66,1.37],[1.92,.52,1.34],[2.19,.48,.78],[2.17,.58,-.58],[1.98,.70,-.86]],.12,orange);
+  cable('disconnected-lead',[[1.44,.60,1.37],[1.92,.52,1.34],[2.19,.48,.78],[2.17,.58,-.58],[1.98,.70,-.86]],.10,dark);
   b('ai-cable-gland',1.98,.70,-.86,.3,.3,.34,orange);
   // Hinged back access door, deliberately held open. Its layered underside
   // faces the player; the recorder remains the only pale, sealed assembly.
   ivory.color.setHex(0x9caa9e);
-  const panel=new T.Group();panel.name='open-ai-service-panel';panel.position.set(0,1.40,-1.40);panel.rotation.x=1.20;cell.add(panel);
+  const panel=new T.Group();panel.name='open-ai-service-panel';panel.position.set(0,1.40,-1.77);panel.rotation.x=-1.02;cell.add(panel);
   const doorPart=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,m:T.Material)=>{const p=b(name,x,y,z,w,h,d,m);panel.add(p);return p;};
-  doorPart('panel-outer-shell',0,0,-.43,3.86,.18,.94,steel);
-  doorPart('panel-inner-recess',0,.105,-.43,3.28,.04,.66,dark);
-  for(const x of [-1.72,1.72])doorPart('panel-edge-return',x,.18,-.43,.19,.22,.89,orange);
-  for(const x of [-.95,.95])doorPart('panel-stiffener',x,.16,-.43,.16,.13,.65,steel);
+  doorPart('panel-outer-shell',0,0,.52,3.86,.18,1.12,steel);
+  doorPart('panel-inner-recess',0,.105,.52,3.28,.04,.72,dark);
+  for(const x of [-1.72,1.72])doorPart('panel-edge-return',x,.18,.52,.19,.22,1.0,orange);
+  for(const x of [-.95,.95])doorPart('panel-stiffener',x,.16,.52,.16,.13,.73,steel);
   for(const x of [-1.5,1.5]){
-   b('panel-hinge',x,1.40,-1.40,.48,.22,.30,copper);
-   const stay=rod(cell,v(x,1.02,-.75),v(x,2.16,-1.65),.065,.065,orange);stay.name='panel-stay';
+   b('panel-hinge',x,1.40,-1.77,.48,.22,.30,copper);
+   const stay=rod(cell,v(x,1.02,-.75),v(x,2.16,-1.31),.065,.065,orange);stay.name='panel-stay';
   }
   for(const [side,x] of [['left',-2.12],['right',2.12]] as const){
    plate(`ai-protective-cheek-${side}`,outline([[x-.15,-1.82],[x+.15,-1.82],[x+.15,.65],[x-.15,.96]]),.30,1.28,steel);
@@ -189,8 +189,8 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
   b('lead-support-rear',2.15,.56,-.45,.33,.25,.24,orange);
   // Scuffed access lips and pull grip only, not uniform noise on the casing.
   for(const [x,z,w] of [[-1.35,1.91,.46],[-.38,1.91,.29],[-2.12,.32,.22]])b('service-edge-wear',x,.785,z,w,.025,.10,ivory);
-  b('plug-pull-grip',1.25,.96,1.37,.48,.10,.43,steel);
-  b('plug-grip-wear',1.25,1.019,1.37,.26,.018,.20,ivory);
+  b('plug-pull-grip',1.15,.82,1.37,.48,.10,.43,steel);
+  b('plug-grip-wear',1.15,.879,1.37,.26,.018,.20,ivory);
  }else{
   root.name='split-contactor-battery';
   b('island-base',0,.15,0,7.25,.3,3.5,steel);
