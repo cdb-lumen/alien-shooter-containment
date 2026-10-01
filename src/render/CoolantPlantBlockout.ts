@@ -70,12 +70,13 @@ export function coolantPlantBlockout(footprint:Footprint,index:number):T.Group{
   b(.35,.66,1.5,.12,.28,.012,m.mineral);
   b(.5,.74,1.5,.08,.12,.012,m.mineral);
  }else if(index<4){
+  const firstPumpPart=cell.children.length;
   b(0,.32,0,3.3,.24,2.8,m.frame);
   // Volute lies in the YZ plane. Its impeller, coupling and motor share X.
   const voluteGeometry=geometry('coolant-volute',()=>{
    const shape=new T.Shape();shape.moveTo(.62,-.3);
-   shape.bezierCurveTo(.88,.05,.7,.68,.28,.77);
-   shape.lineTo(-.55,.77);shape.lineTo(-.55,.43);
+   shape.bezierCurveTo(.94,.12,.58,.88,.08,.79);
+   shape.bezierCurveTo(-.23,.76,-.4,.57,-.55,.43);
    shape.bezierCurveTo(-1,.05,-.64,-.68,-.12,-.68);
    shape.bezierCurveTo(.23,-.73,.5,-.57,.62,-.3);
    return new T.ExtrudeGeometry(shape,{depth:.5,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.06,bevelThickness:.06,curveSegments:16});
@@ -103,8 +104,18 @@ export function coolantPlantBlockout(footprint:Footprint,index:number):T.Group{
   valve(-.96,1.84,1.1);
   // Permanent cutaway housing exposes a ribbed basket, entirely on the skid.
   pipe(v(.7,.3,-1.38),v(.7,.48,-1.38),.33,m.frame);
-  const housing=new T.Mesh(geometry('coolant-strainer-cutaway',()=>new T.CylinderGeometry(.37,.37,.58,16,1,true,Math.PI/2,Math.PI)),m.enamel);
-  housing.position.set(.7,.76,-1.38);housing.name='strainer-cutaway';housing.castShadow=housing.receiveShadow=true;cell.add(housing);
+  // A thick horseshoe shell leaves a wide inspection mouth, not a wire cage.
+  const housingGeometry=geometry('coolant-strainer-cutaway-thick',()=>{
+   const section=new T.Shape();
+   section.absarc(0,0,.46,-Math.PI*2/3,Math.PI*2/3,false);
+   section.lineTo(Math.cos(Math.PI*2/3)*.32,Math.sin(Math.PI*2/3)*.32);
+   section.absarc(0,0,.32,Math.PI*2/3,-Math.PI*2/3,true);section.closePath();
+   return new T.ExtrudeGeometry(section,{depth:.68,bevelEnabled:false,curveSegments:20});
+  });
+  const housing=new T.Mesh(housingGeometry,m.enamel);
+  housing.rotation.x=-Math.PI/2;housing.position.set(.7,.43,-1.38);housing.name='strainer-cutaway';housing.castShadow=housing.receiveShadow=true;cell.add(housing);
+  const rim=new T.Mesh(housingGeometry,m.stainless);rim.rotation.x=-Math.PI/2;rim.scale.z=.1;
+  rim.position.set(.7,1.08,-1.38);rim.name='strainer-cut-rim';cell.add(rim);
   const basket=new T.Group();basket.name='strainer-basket';cell.add(basket);
   for(const y of [.5,.74,1.04]){const hoop=ring(basket,.7,y,-1.38,.28,.025,m.stainless);hoop.rotation.x=-Math.PI/2;}
   for(let i=0;i<10;i++){const a=i*Math.PI/5;pipe(v(.7+Math.cos(a)*.28,.5,-1.38+Math.sin(a)*.28),v(.7+Math.cos(a)*.28,1.04,-1.38+Math.sin(a)*.28),.022,m.stainless);}
@@ -112,6 +123,11 @@ export function coolantPlantBlockout(footprint:Footprint,index:number):T.Group{
   b(.96,1.55,0,.55,.1,.42,m.frame);
   b(1,1.61,0,.18,.025,.15,m.amber);
   b(-.57,.56,.5,.12,.15,.018,m.mineral);
+  // Turn the connected assembly toward the room's service aisle. The casing
+  // face now reads as a scroll from the fixed desktop camera, not its thin edge.
+  const pumpAssembly=new T.Group();pumpAssembly.name='pump-service-facing-assembly';
+  for(const part of cell.children.slice(firstPumpPart))pumpAssembly.add(part);
+  pumpAssembly.rotation.y=Math.PI/2;cell.add(pumpAssembly);
  }else{
   // Open low frame carries two separate headers, each aligned with its covers.
   for(const x of [-1.25,1.25]){
@@ -125,8 +141,22 @@ export function coolantPlantBlockout(footprint:Footprint,index:number):T.Group{
    for(const x of [-1.8,1.8])pipe(v(x,.2,z),v(x,.94,z),.18,m.stainless);
    valve(i===0?-.55:.55,1.22,z);
   }
-  b(0,.82,0,1.15,.1,.7,m.enamel);
-  for(const x of [-.3,.3])b(x,.88,0,.18,.02,.14,x<0?m.cool:m.amber);
+  b(0,.84,0,2.95,.12,1.35,m.dark);
+  // Raised stencil pixels batch with the existing metal finish, no DOM or texture.
+  const label=new T.Group();label.name='life-support-service-label';label.userData.text='LIFE SUPPORT';cell.add(label);
+  const glyphs:Record<string,string[]>={
+   L:['100','100','100','100','111'],I:['111','010','010','010','111'],
+   F:['111','100','110','100','100'],E:['111','100','110','100','111'],
+   S:['111','100','111','001','111'],U:['101','101','101','101','111'],
+   P:['111','101','111','100','100'],O:['111','101','101','101','111'],
+   R:['110','101','110','101','101'],T:['111','010','010','010','010'],
+  };
+  for(const [row,text] of ['LIFE','SUPPORT'].entries()){
+   const pitch=.1,left=-(text.length*4-1)*pitch/2;
+   for(const [i,char] of [...text].entries())for(const [y,line] of glyphs[char].entries())for(const [x,pixel] of [...line].entries()){
+    if(pixel==='1')box(label,left+(i*4+x+.5)*pitch,.913,-.55+row*.62+(y+.5)*pitch,.088,.018,.088,m.stainless,0);
+   }
+  }
  }
  cell.scale.set(footprint.width/4,Math.min(1,footprint.width/4,footprint.height/4),footprint.height/4);
  root.position.set(footprint.x+footprint.width/2,0,footprint.y+footprint.height/2);

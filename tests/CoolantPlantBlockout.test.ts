@@ -25,6 +25,25 @@ describe('coolant plant room visuals',()=>{
    expect(model.getObjectByName('strainer-basket')).toBeDefined();
   }
  });
+ it('presents curved pump heads toward the desktop view and a thick open strainer shell',()=>{
+  for(const index of [2,3]){
+   const model=coolantPlantBlockout({x:0,y:0,width:4,height:4},index);
+   model.updateMatrixWorld(true);
+   const volute=model.getObjectByName('pump-volute') as T.Mesh;
+   const axis=new T.Vector3(0,0,1).transformDirection(volute.matrixWorld);
+   expect(Math.abs(axis.z)).toBeGreaterThan(.85);
+   const housing=model.getObjectByName('strainer-cutaway') as T.Mesh;
+   expect(housing.geometry.type).toBe('ExtrudeGeometry');
+   expect(model.getObjectByName('strainer-cut-rim')).toBeDefined();
+  }
+ });
+ it('identifies life support with room-local raised service lettering',()=>{
+  const model=coolantPlantBlockout({x:0,y:0,width:4,height:4},4);
+  const label=model.getObjectByName('life-support-service-label');
+  expect(label).toBeDefined();
+  expect(label!.userData.text).toBe('LIFE SUPPORT');
+  expect(new T.Box3().setFromObject(label!).getSize(new T.Vector3()).x).toBeGreaterThan(2);
+ });
  it('connects expansion vessels to both exchanger shells inside the retained skids',()=>{
   for(const index of [0,1]){
    const model=coolantPlantBlockout({x:0,y:0,width:4,height:4},index);
