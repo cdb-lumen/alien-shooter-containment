@@ -9,6 +9,43 @@ const solids=ROOM_TEMPLATES['infested-workshop'].obstacles;
 const models=()=>solids.map((f,i)=>environmentObstacle('infested',{x:f.x/32,y:f.y/32,width:f.width/32,height:f.height/32},i,'infested-workshop'));
 const bounds=(o:T.Object3D)=>new T.Box3().setFromObject(o,true);
 describe('Room15 rough machinery',()=>{
+ it('replaces cable-like resin with asymmetric closed webs anchored into machine castings',()=>{
+  const model=models()[0];model.updateMatrixWorld(true);
+  const webs:T.Mesh[]=[];model.traverse(o=>{if(o instanceof T.Mesh&&o.name==='directional-resin')webs.push(o);});
+  expect(webs.length).toBeGreaterThanOrEqual(2);
+  for(const web of webs){
+   expect(web.geometry.type).toBe('BufferGeometry');
+   expect(web.geometry.getAttribute('uv')).toBeDefined();
+   const widths=web.userData.widths as number[];expect(new Set(widths).size).toBeGreaterThan(3);
+   for(const anchor of web.userData.anchors as {point:number[];owner:string}[]){
+    const p=new T.Vector3().fromArray(anchor.point);web.parent!.localToWorld(p);
+    expect(bounds(model.getObjectByName(anchor.owner)!).expandByScalar(.025).containsPoint(p),anchor.owner).toBe(true);
+   }
+  }
+  expect(model.getObjectByName('housing-resin-wrap')).toBeUndefined();
+ });
+ it('holds coaxial stock in the chuck and tailstock with contacting gripper pads',()=>{
+  const model=models()[0];model.updateMatrixWorld(true);
+  const piece=bounds(model.getObjectByName('suspended-workpiece')!);
+  for(const name of ['chuck','tailstock-center','gripper-pad-left','gripper-pad-right']){
+   expect(model.getObjectByName(name),name).toBeDefined();
+   expect(piece.intersectsBox(bounds(model.getObjectByName(name)!)),name).toBe(true);
+  }
+ });
+ it('shows a torn folded guard and separated insulation ends rather than a closed cover',()=>{
+  const model=models()[0];
+  for(const name of ['guard-torn-edge','guard-fold','guard-hinge','cable-clamp','insulation-cut-stub','cut-copper-end','peeled-insulation'])expect(model.getObjectByName(name),name).toBeDefined();
+  expect(bounds(model.getObjectByName('insulation-cut-stub')!).intersectsBox(bounds(model.getObjectByName('peeled-insulation')!))).toBe(false);
+ });
+ it('owns and disposes web geometry without retiring shared workshop materials',()=>{
+  const first=models()[0],second=models()[0];
+  const a=first.getObjectByName('directional-resin') as T.Mesh,b=second.getObjectByName('directional-resin') as T.Mesh;
+  expect(a.geometry).not.toBe(b.geometry);expect(a.material).toBe(b.material);
+  let retired=0,materialRetired=0;a.geometry.addEventListener('dispose',()=>retired++);
+  (a.material as T.Material).addEventListener('dispose',()=>materialRetired++);
+  disposeModel(first);expect(retired).toBe(1);expect(materialRetired).toBe(0);
+  expect(Array.from(b.geometry.getAttribute('position').array).every(Number.isFinite)).toBe(true);
+ });
  it('uses room-local worn paint and matte longitudinal resin without emissive poison',()=>{
   const first=models()[0],second=models()[0];
   const paint=(first.getObjectByName('headstock') as T.Mesh).material as T.MeshStandardMaterial;

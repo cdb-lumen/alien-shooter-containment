@@ -3,7 +3,7 @@ import {box,rod,ring,shell} from './meshParts';
 import {WORKSHOP_MAT as MAT} from './InfestedWorkshopMaterials';
 import type {Footprint} from './ShipEnvironments';
 
-/** Room15 stage3: major machinery and room-local material treatment. */
+/** Room15 stage4: attached resin braces and a damaged, supported lathe assembly. */
 export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
  const root=new T.Group(),cell=new T.Group();root.add(cell);
  const roles=['lathe-manipulator','fixture-bench','gantry','stock-cabinet'];
@@ -15,8 +15,36 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
  const link=(name:string,a:T.Vector3,c:T.Vector3,r:number,m:T.Material=MAT.edge)=>{
   const mesh=rod(cell,a,c,r,r,m);mesh.name=name;return mesh;
  };
+ // Closed flattened webs flare into their supports. Unequal widths and skewed
+ // ridges break the parallel cable silhouette without scattering loose tendrils.
+ const web=(name:string,points:T.Vector3[],widths:number[],owners:string[],side=v(1,0,0))=>{
+  const vertices:number[]=[],uv:number[]=[],indices:number[]=[],sides=8;
+  const normal=new T.Vector3().crossVectors(side,points.at(-1)!.clone().sub(points[0])).normalize();
+  points.forEach((p,row)=>{
+   for(let j=0;j<=sides;j++){
+    const angle=j/sides*Math.PI*2;
+    const q=p.clone().addScaledVector(side,Math.cos(angle)*widths[row])
+     .addScaledVector(normal,Math.sin(angle)*(.045+widths[row]*.12));
+    vertices.push(q.x,q.y,q.z);uv.push(j/sides,row/(points.length-1));
+    if(row<points.length-1&&j<sides){const a=row*(sides+1)+j,c=a+sides+1;indices.push(a,c,a+1,a+1,c,c+1);}
+   }
+  });
+  for(let j=1;j<sides-1;j++){
+   indices.push(0,j+1,j);const last=(points.length-1)*(sides+1);indices.push(last,last+j,last+j+1);
+  }
+  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+  geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geometry.setIndex(indices);geometry.computeVertexNormals();
+  // The existing world batcher retires room-owned UV geometry after copying it.
+  geometry.userData.environmentUV=true;
+  const mesh=new T.Mesh(geometry,MAT.flesh);mesh.name=name;mesh.castShadow=mesh.receiveShadow=true;cell.add(mesh);
+  mesh.userData.widths=widths;
+  mesh.userData.anchors=[{point:points[0].toArray(),owner:owners[0]},{point:points.at(-1)!.toArray(),owner:owners[1]}];
+  for(const shift of [-.48,.15,.58]){
+   const fiber=points.map((p,i)=>p.clone().addScaledVector(side,widths[i]*shift).addScaledVector(normal,.065));
+   for(let i=1;i<fiber.length;i++)link('resin-fiber',fiber[i-1],fiber[i],.022,MAT.flesh);
+  }
+ };
  const rib=(x:number,z:number,top:number)=>{
-  // Bundled fibers rise along the fixed casting, not out into the aisle.
   const a=v(x-.12,.42,z+.09),mid=v(x,.95,z+.1),end=v(x+.12,top,z-.08);
   link('directional-resin',a,mid,.11,MAT.flesh);
   link('directional-resin',mid,end,.085,MAT.flesh);
@@ -44,9 +72,17 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
   b('tailstock',1.7,1.51,0,.65,.72,.67,MAT.trim);
   link('tailstock-center',v(1.2,1.67,0),v(1.55,1.67,0),.09);
   const wheel=ring(cell,.56,1.3,.79,.23,.045,MAT.edge);wheel.name='carriage-handwheel';
-  // The opened guard leaves the chuck and working ways visible.
-  const guard=b('broken-guard',-1.2,2.12,-.57,1.15,.08,.55,MAT.trim);guard.rotation.x=-.7;
+  // The rear half remains hinged. The ragged front lip folds away from the chuck.
+  const outline=new T.Shape();outline.moveTo(-.66,0);outline.lineTo(.59,0);outline.lineTo(.59,.5);
+  outline.lineTo(.32,.43);outline.lineTo(.22,.62);outline.lineTo(.04,.45);outline.lineTo(-.14,.55);
+  outline.lineTo(-.26,.38);outline.lineTo(-.46,.58);outline.lineTo(-.66,.49);outline.closePath();
+  const guard=new T.Mesh(new T.ExtrudeGeometry(outline,{depth:.07,bevelEnabled:false}),MAT.trim);
+  guard.geometry.userData.environmentUV=true;
+  guard.name='broken-guard';guard.position.set(-1.21,1.96,-.57);guard.rotation.x=-.65;guard.castShadow=true;cell.add(guard);
   b('guard-stump',-.71,1.83,-.54,.12,.5,.12,MAT.edge);
+  link('guard-hinge',v(-1.86,1.98,-.54),v(-.61,1.98,-.54),.065,MAT.edge);
+  const fold=b('guard-fold',-1.57,2.28,-.84,.48,.07,.35,MAT.trim);fold.rotation.z=.35;
+  link('guard-torn-edge',v(-1.67,2.3,-.79),v(-1.4,2.38,-.87),.033,MAT.edge);
   // A rear bolted shoulder supports a bent two-link arm, not a floating arch.
   b('arm-foot',.72,1.17,-.83,.75,.24,.48,MAT.black);
   link('arm-column',v(.72,1.2,-.83),v(.72,2.08,-.83),.18,MAT.trim);
@@ -54,26 +90,33 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
   link('arm-upper',shoulder,elbow,.16,MAT.trim);
   link('arm-forearm',elbow,wrist,.12,MAT.trim);
   for(const p of [shoulder,elbow,wrist])link('arm-hinge',p.clone().add(v(0,0,-.15)),p.clone().add(v(0,0,.15)),.23,MAT.edge);
-  link('tendon-brace',v(1.45,1.08,-.74),elbow.clone().add(v(.14,-.12,0)),.075,MAT.flesh);
-  link('tendon-brace',v(-.58,1.08,-.69),elbow.clone().add(v(-.12,-.1,0)),.055,MAT.bone);
-  // Two jaws physically meet the suspended stock. No free-floating collectible.
-  for(const x of [-.4,0]){
-   link('gripper',v(x,2.24,0),v(x,1.82,0),.065,MAT.black);
+  web('tendon-brace',[v(.76,1.31,-.79),v(.59,1.66,-.71),v(.26,2.17,-.6),v(-.04,2.72,-.6)],
+   [.28,.17,.095,.2],['arm-foot','arm-upper']);
+  // Coaxial stock is seated in the chuck and tailstock. Opposed gripper pads
+  // close around it from front and rear, with a supported wrist crosshead.
+  b('gripper-crosshead',-.2,2.2,0,.35,.16,.76,MAT.black);
+  for(const [z,name] of [[-.28,'left'],[.28,'right']] as const){
+   link('gripper',v(-.2,2.2,z),v(-.2,1.68,z),.065,MAT.black);
+   b(`gripper-pad-${name}`,-.2,1.67,z,.32,.22,.34,MAT.black);
   }
-  link('suspended-workpiece',v(-.72,1.77,0),v(.17,1.77,0),.16,MAT.copper);
-  for(const x of [-2.13,-1.88,-1.63]){
-   rib(x,.62,2.08);
-   link('housing-resin-wrap',v(x+.12,2.08,.54),v(x+.22,2.12,-.36),.065,MAT.flesh);
-  }
+  link('suspended-workpiece',v(-.87,1.67,0),v(1.25,1.67,0),.16,MAT.copper);
+  // Two broad, unequal attachment patches replace the three hanging loops.
+  web('directional-resin',[v(-1.98,1.02,.56),v(-1.89,1.3,.63),v(-1.7,1.7,.63),v(-1.91,2.06,.5)],
+   [.34,.23,.16,.3],['lathe-bed','headstock']);
+  web('directional-resin',[v(-1.33,1.04,.52),v(-1.48,1.25,.64),v(-1.4,1.52,.62),v(-1.29,1.83,.54)],
+   [.25,.12,.19,.21],['lathe-bed','headstock']);
   // Broad attached apron establishes the fixed machine mass at gameplay scale.
   b('bed-apron',-.1,.74,.69,4.25,.36,.12,MAT.steel);
   for(const x of [-1.8,-1.48])b('apron-worn-paint',x,.76,.765,.22,.25,.025,MAT.trim);
-  for(const offset of [-.07,.07])link('tendon-fiber',v(1.45+offset,1.08,-.7),elbow.clone().add(v(.14+offset,-.12,.04)),.026,MAT.flesh);
-  link('wet-resin-seam',v(-2.03,1.42,.72),v(-1.97,1.75,.64),.018,MAT.wet);
-  const socket=shell(cell,1.2,.7,-.68,.3,.22,.8,MAT.flesh);socket.name='asymmetric-growth-socket';
+  link('wet-resin-seam',v(-2.03,1.42,.66),v(-1.97,1.75,.64),.018,MAT.wet);
+  const socket=shell(cell,.78,1.3,-.76,.3,.13,.42,MAT.flesh);socket.name='asymmetric-growth-socket';
+  // A clamped supply sheath ends above a separate peeled flap. Copper cores
+  // stop short of the cut stub, leaving a visible disconnection on the arm side.
+  b('cable-clamp',.87,1.73,-.94,.39,.17,.18,MAT.edge);
+  link('insulation-cut-stub',v(.85,1.99,-.94),v(.85,1.64,-.94),.12,MAT.rubber);
+  const flap=b('peeled-insulation',.78,1.36,-.96,.32,.34,.075,MAT.rubber);flap.rotation.z=-.38;
   for(let i=0;i<3;i++){
-   link('peeled-insulation',v(.72+i*.07,1.93,-.93),v(.25+i*.08,1.45,-.96),.025,MAT.rubber);
-   link('cut-copper-end',v(.25+i*.08,1.45,-.96),v(.15+i*.08,1.32,-.92),.015,MAT.copper);
+   link('cut-copper-end',v(.67+i*.08,1.43,-.98),v(.65+i*.08,1.55,-.97),.023,MAT.copper);
   }
   // Coarse missing-paint patches only, not final surface texturing.
   b('chipped-yellow',-1.96,2.106,.12,.35,.014,.25,MAT.steel);

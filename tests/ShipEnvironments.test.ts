@@ -43,7 +43,10 @@ describe('ship environments',()=>{
   it(`${env} batches to a bounded material set and disposes only owned resources`,()=>{
    const world=new T.Group();environmentArchitecture(world,env,32,24);
    appendEnvironment(world,environmentObstacle(env,{x:5,y:5,width:4,height:8},0,rooms[env][0]));
-   const originals=meshes(world),sharedGeometry=new Set(originals.map(m=>m.geometry));
+   const originals=meshes(world),ownedGeometry=originals.filter(m=>env==='infested'&&['directional-resin','tendon-brace','broken-guard'].includes(m.name)).map(m=>m.geometry);
+   if(env==='infested'){expect(ownedGeometry).toHaveLength(4);for(const g of ownedGeometry)expect(g.userData.environmentUV).toBe(true);}
+   const sharedGeometry=new Set(originals.map(m=>m.geometry).filter(g=>!ownedGeometry.includes(g)));
+   const originalOwnedSpies=ownedGeometry.map(g=>vi.spyOn(g,'dispose'));
    const ownedMaterials=new Set(originals.map(m=>m.material as T.MeshStandardMaterial).filter(m=>!sharedMaterials.includes(m)));
    if(env==='habitation'){expect(ownedMaterials.size).toBe(4);for(const m of ownedMaterials)expect(m.userData.actorMaterial).toBe(true);}else expect(ownedMaterials.size).toBe(0);
    expect([...sharedGeometry].every(g=>[...geometries.values()].includes(g))).toBe(true);
@@ -59,7 +62,7 @@ describe('ship environments',()=>{
     expect(baked.length).toBe(new Set(originals.map(m=>m.material)).size);
     const ownedSpies=baked.map(m=>vi.spyOn(m.geometry,'dispose'));
     disposeModel(world);
-    for(const spy of ownedSpies)expect(spy).toHaveBeenCalledTimes(1);
+    for(const spy of [...ownedSpies,...originalOwnedSpies])expect(spy).toHaveBeenCalledTimes(1);
     for(const spy of [...geometrySpies,...materialSpies])expect(spy).not.toHaveBeenCalled();
     for(const spy of ownedMaterialSpies)expect(spy).toHaveBeenCalledTimes(1);
     renderer.floorMaterial.dispose();
