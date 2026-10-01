@@ -15,8 +15,9 @@ const model=()=>{const root=new T.Group();environmentArchitecture(root,'infested
 const bake=(world:T.Group)=>(DepthRenderer.prototype as unknown as {bakeWorld:()=>void}).bakeWorld.call({world});
 const meshes=(root:T.Group)=>{const out:T.Mesh[]=[];root.traverse(o=>{if(o instanceof T.Mesh)out.push(o);});return out;};
 describe('Room16 room visuals',()=>{
- it('closes every crowned plate with opposite directed edges and outward top faces',()=>{
-  const root=model(),plates=meshes(root).filter(m=>m.name.includes('-plate-'));expect(plates).toHaveLength(12);
+ it('closes every crowned plate and cavity lip with opposite directed edges and outward faces',()=>{
+  const root=model(),plates=meshes(root).filter(m=>m.name.includes('-plate-'));expect(plates).toHaveLength(9);
+  const lip=meshes(root).find(m=>m.name==='sensory-carapace-lip')!;expect(lip).toBeDefined();
   const badEdges=(indices:number[])=>{
    const edges=new Map<string,number[]>();
    for(let i=0;i<indices.length;i+=3)for(let j=0;j<3;j++){
@@ -25,16 +26,50 @@ describe('Room16 room visuals',()=>{
    }
    return [...edges.values()].filter(([count,direction])=>count!==2||direction!==0).length;
   };
-  for(const plate of plates){
+  for(const plate of [...plates,lip]){
    const p=plate.geometry.getAttribute('position'),indices=Array.from(plate.geometry.index!.array);
    expect(badEdges(indices),plate.name).toBe(0);
    const corrupted=[...indices];[corrupted[1],corrupted[2]]=[corrupted[2],corrupted[1]];expect(badEdges(corrupted)).toBeGreaterThan(0);
+   let volume=0;
    for(let i=0;i<indices.length;i+=3){
-    const v=indices.slice(i,i+3).map(j=>new T.Vector3().fromBufferAttribute(p,j));
+    const ids=indices.slice(i,i+3),v=ids.map(j=>new T.Vector3().fromBufferAttribute(p,j));
     const cross=v[1].clone().sub(v[0]).cross(v[2].clone().sub(v[0]));expect(cross.lengthSq()).toBeGreaterThan(1e-12);
-    if(v.every(p=>p.y>35/32+.001))expect(cross.y,plate.name).toBeGreaterThan(0);
+    volume+=v[0].dot(v[1].clone().cross(v[2]))/6;
+    if(plate!==lip){
+     if(ids.every(j=>j>=p.count/2))expect(cross.y,plate.name).toBeGreaterThan(0);
+     if(ids.every(j=>j<p.count/2))expect(cross.y,plate.name).toBeLessThan(0);
+    }else{
+     const band=Math.floor(i/(48*6));
+     if(band<2)expect(cross.y,'lip upper slope').toBeGreaterThan(0);
+     if(band===2){const center=v[0].clone().add(v[1]).add(v[2]).multiplyScalar(1/3);expect(cross.dot(new T.Vector3(600/32-center.x,0,260/32-center.z)),'lip inner wall').toBeGreaterThan(0);}
+     if(band===3)expect(cross.y,'lip underside').toBeLessThan(0);
+    }
    }
+   expect(volume,plate.name).toBeGreaterThan(0);
   }
+  disposeModel(root);
+ });
+ it('replaces belt bands with unequal overlapping curved shells and a broad sunken cavity',()=>{
+  const root=model(),ms=meshes(root);
+  expect(ms.filter(m=>/^root-.*-rib-/.test(m.name))).toHaveLength(0);
+  expect((ms.find(m=>m.name==='organ-bed')!.material as T.Material).name).toBe('swarm-charcoal');
+  const counts=['west','east','south'].map(side=>ms.filter(m=>m.name.startsWith(`root-${side}-plate-`)).length);
+  expect(counts).toEqual([3,2,1]);
+  const west=ms.filter(m=>m.name.startsWith('root-west-plate-'));
+  for(let i=1;i<west.length;i++)expect(new T.Box3().setFromObject(west[i-1]).intersectsBox(new T.Box3().setFromObject(west[i]))).toBe(true);
+  // The outer edge must bow in plan, not merely crown a rectangular belt tile.
+  const p=west[0].geometry.getAttribute('position'),n=Math.sqrt(p.count/2)-1;
+  const a=new T.Vector3().fromBufferAttribute(p,0),b=new T.Vector3().fromBufferAttribute(p,n*(n+1));
+  const midpoint=new T.Vector3().fromBufferAttribute(p,Math.floor(n/2)*(n+1));
+  const edge=b.clone().sub(a);edge.y=0;const delta=midpoint.sub(a);delta.y=0;
+  expect(edge.clone().cross(delta).length()/edge.length()).toBeGreaterThan(.05);
+  const cavity=ms.find(m=>m.name==='sensory-recess')!,lip=ms.find(m=>m.name==='sensory-carapace-lip')!;
+  const cb=new T.Box3().setFromObject(cavity),lb=new T.Box3().setFromObject(lip);
+  expect(cb.getSize(new T.Vector3()).x*32).toBeGreaterThan(55);
+  expect(lb.max.y*32-cb.max.y*32).toBeGreaterThan(7);
+  const ray=new T.Raycaster(new T.Vector3(600/32,4,260/32),new T.Vector3(0,-1,0));
+  expect(ray.intersectObject(root,true)[0].object.name).toBe('sensory-recess');
+  expect(ms.some(m=>m.name==='severed-distributor')).toBe(true);
   disposeModel(root);
  });
  it('uses crowned organic plates, differentiated materials and recessed wall bays',()=>{

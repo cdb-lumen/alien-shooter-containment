@@ -31,10 +31,15 @@ export function swarmJunctionBlockout(){
  const mix=(a:XY,b:XY,t:number):XY=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
  // A closed shell with a crowned, tapered back, rather than a stack of slabs.
  const crown=(name:string,a:XY,b:XY,c:XY,d:XY,height:number)=>{
-  const vertices:number[]=[],indices:number[]=[];const n=6;
+  const vertices:number[]=[],indices:number[]=[];const n=12;
   for(let layer=0;layer<2;layer++)for(let j=0;j<=n;j++)for(let k=0;k<=n;k++){
-   const t=j/n,s=k/n,p=mix(mix(a,c,t),mix(b,d,t),s);
-   const h=layer===0?35:36+height*Math.sin(Math.PI*s)*Math.sin(Math.PI*(.12+.76*t));
+   const t=j/n,s=k/n;
+   // Inset bowed flanks and swept ends stay inside the supplied collision-safe
+   // quad. The plan silhouette curves as well as the shell's upper surface.
+   const along=.015+.88*t+.10*Math.sin(Math.PI*s);
+   const across=.02+.96*s+.16*Math.sin(Math.PI*t)*(1-2*s);
+   const p=mix(mix(a,c,along),mix(b,d,along),across);
+   const h=layer===0?31:32+height*Math.sin(Math.PI*s)*Math.sin(Math.PI*(.12+.76*t));
    vertices.push(p[0]/U,h/U,p[1]/U);
   }
   const side=(n+1)*(n+1);
@@ -54,37 +59,47 @@ export function swarmJunctionBlockout(){
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(vertices.length/3*2),2));g.setIndex(indices);g.computeVertexNormals();
   return add(name,g,chitin);
  };
- chitin.roughness=.49;rib.roughness=.88;metal.metalness=.72;metal.roughness=.58;
- // The sealed footprint blocks shots, so its body reaches the .95m fallback
- // projectile plane everywhere. Upper fittings stay below 1.4m overall.
- slab('organ-bed',SWARM_ORGAN,0,32,tendon);
- // Broad overlapping plates follow each root. Exposed bands are rough rib beds,
- // not repetitive nodules. Each root terminates in its own pale severed face.
- const arm=(name:string,a:XY,b:XY,c:XY,d:XY)=>{
-  for(let i=0;i<4;i++){
-   const t=i/4,end=(i+1)/4;
-   poly(`${name}-rib-${i}`,[mix(a,c,t),mix(b,d,t),mix(b,d,end),mix(a,c,end)],32,3,rib);
-   crown(`${name}-plate-${i}`,mix(a,c,t+.025),mix(b,d,t+.025),mix(a,c,end-.035),mix(b,d,end-.035),5+i*.75);
-  }
-  poly(`${name}-cut`,[a,b,mix(b,d,.045),mix(a,c,.045)],32,5,rib);
-  // Broken metal saddle below the growth, with a visible dark interruption.
-  poly(`${name}-saddle`,[mix(a,c,.12),mix(b,d,.12),mix(b,d,.17),mix(a,c,.17)],32,7,metal);
+ chitin.roughness=.57;rib.color.setHex(0x777d6b);rib.roughness=.88;
+ tendon.color.setHex(0x424b3b);metal.metalness=.72;metal.roughness=.58;
+ // Retain the exact sealed shot silhouette at .95m, but bury its planar top
+ // beneath charcoal shell lobes. No contrasting pink platform or striped beds.
+ slab('organ-bed',SWARM_ORGAN,0,31,chitin);
+ const arm=(name:string,a:XY,b:XY,c:XY,d:XY,segments:readonly (readonly [number,number,number])[])=>{
+  for(const [i,[start,end,height]] of segments.entries())
+   crown(`${name}-plate-${i}`,mix(a,c,start),mix(b,d,start),mix(a,c,end),mix(b,d,end),height);
+  // Bone is confined to the ruptured terminal, rather than repeated cross-bars.
+  poly(`${name}-cut`,[a,b,mix(b,d,.03),mix(a,c,.065)],29,5,rib);
+  poly(`${name}-saddle`,[mix(a,c,.09),mix(mix(a,c,.09),mix(b,d,.09),.3),mix(mix(a,c,.18),mix(b,d,.18),.3),mix(a,c,.18)],31,5,metal);
  };
- arm('root-west',[370,130],[415,115],[515,255],[550,210]);
- arm('root-east',[785,115],[830,130],[650,210],[685,255]);
- arm('root-south',[575,370],[625,370],[575,310],[625,310]);
- // Torn low rectangular distributor still frames the central routing recess.
- box('severed-distributor',576,226,12,60,32,10.5,metal);
- box('distributor-east',616,226,10,56,32,9,metal);
- box('distributor-front-left',584,278,15,12,32,9,metal);
- box('distributor-front-right',607,278,11,12,32,6.5,metal);
- poly('torn-distributor-lid',[[582,225],[586,211],[613,211],[620,226]],32,12.5,metal);
- box('sensory-recess',588,231,28,43,32,.5,dark);
- // Severed insulated conduits enter the retained distributor, not a new device.
- for(let i=0;i<3;i++)box('hub-split-conduit',580,235+i*11,13+i%2*4,4,33,4,tendon);
- poly('organ-west-shoulder',[[550,235],[576,226],[576,285],[556,279]],32,10,chitin);
- poly('organ-east-shoulder',[[626,226],[650,235],[644,279],[626,285]],32,10,chitin);
- poly('organ-south-socket',[[580,291],[620,291],[622,310],[578,310]],32,8,chitin);
+ arm('root-west',[370,130],[415,115],[551,283],[575,234],[[0,.48,8],[.32,.79,11],[.65,1,12]]);
+ arm('root-east',[785,115],[830,130],[627,234],[649,283],[[0,.62,11],[.43,1,8]]);
+ arm('root-south',[575,370],[625,370],[575,300],[625,300],[[0,1,9]]);
+ // Broad shoulder scales bridge the roots into one body, not three equal belts.
+ crown('hub-west-plate-0',[516,255],[550,214],[556,282],[580,231],11);
+ crown('hub-east-plate-0',[627,231],[650,214],[635,291],[684,254],9);
+ crown('hub-south-plate-0',[552,282],[647,282],[575,310],[625,310],12);
+ // A dished organic lip encloses an actual low, broad sensory cavity. Four
+ // closed rings give an outward shell, steep inner wall and sealed underside.
+ const lipVertices:number[]=[],lipIndices:number[]=[],steps=48;
+ const rings:readonly (readonly [number,number,number])[]=[[49,40,31],[41,32,41],[30,23,32],[30,23,31]];
+ for(const [ring,[rx,ry,h]] of rings.entries())for(let i=0;i<steps;i++){
+  const a=i/steps*Math.PI*2,warp=1+.045*Math.sin(3*a+.4);
+  lipVertices.push((600+rx*Math.cos(a)*warp)/U,(h+(ring===1?1.5*Math.sin(a+.6):0))/U,(260+ry*Math.sin(a)*warp)/U);
+ }
+ for(let r=0;r<rings.length;r++)for(let i=0;i<steps;i++){
+  const a=r*steps+i,b=r*steps+(i+1)%steps,c=((r+1)%rings.length)*steps+i,d=((r+1)%rings.length)*steps+(i+1)%steps;
+  lipIndices.push(a,c,b,b,c,d);
+ }
+ const lip=new T.BufferGeometry();lip.setAttribute('position',new T.Float32BufferAttribute(lipVertices,3));lip.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(lipVertices.length/3*2),2));lip.setIndex(lipIndices);lip.computeVertexNormals();
+ add('sensory-carapace-lip',lip,chitin);
+ const recess:XY[]=Array.from({length:48},(_,i)=>{const a=i/48*Math.PI*2;return [600+32*Math.cos(a),260+25*Math.sin(a)] as XY;});
+ poly('sensory-recess',recess,31,.5,dark);
+ // Only a torn corner and folded lid of the captured distributor remain exposed.
+ // Shell shoulders overlap its straight edges; it no longer frames a neat box.
+ box('severed-distributor',619,226,8,40,31,11.5,metal);
+ box('distributor-front-right',614,267,13,7,31,6.5,metal);
+ poly('torn-distributor-lid',[[592,225],[586,211],[613,211],[622,230]],31,12.5,metal);
+ for(let i=0;i<3;i++)box('hub-split-conduit',610+i*3,235+i*9,10,3,32,3,tendon);
  // Six flush segments reproduce the layout's service paths. They do not add solids.
  const runs:readonly (readonly XY[])[]=[[[330,90],[400,135],[550,250]],[[870,90],[800,135],[650,250]],[[600,620],[600,370],[600,280]]];
  for(const [i,run] of runs.entries())for(let j=1;j<run.length;j++){
