@@ -2,14 +2,26 @@ import * as T from 'three';
 import type {RoomTemplate,Point} from '../game/roguelike/types';
 
 const U=32;
-/** Room14 rough models only. All dimensions are game units. The template owns
+/** Room14 shell and machinery. All dimensions are game units. The template owns
  * the floor cutout and collision; machinery and edge protection stay inside it. */
 export function serviceShaftLanding(t:RoomTemplate):T.Group{
- const root=new T.Group();root.name='service-shaft-landing-blockout';
+ const root=new T.Group();root.name='service-shaft-landing';
  const material=(name:string,color:number,metalness=.45,emissive=0)=>{
   const m=new T.MeshStandardMaterial({name:`shaft-${name}`,color,metalness,roughness:.72,emissive,emissiveIntensity:emissive?.35:0});m.userData.actorMaterial=true;return m;
  };
- const steel=material('steel',0x52616a),zinc=material('zinc',0x9aa8aa),dark=material('depth',0x202e3a,.25),deck=material('deck',0x657477,.25),amber=material('amber',0xcb9552,.35,0x7a481d),fiber=material('fiber',0x75acb5,.2);
+ const steel=material('steel',0x46565f,.65),zinc=material('zinc',0x9aa8aa,.65),dark=material('depth',0x202e3a,.25),deck=material('deck',0x58676a,.25),amber=material('amber',0xcb9552,.35,0x7a481d),fiber=material('fiber',0x75acb5,.2,0x24454b);
+ zinc.roughness=.48;deck.roughness=.92;dark.roughness=.88;
+ const grate=material('worn-grate',0x687c83,.5);grate.roughness=.84;
+ // Low-contrast rolled-metal grain, generated locally with no borrowed assets.
+ const pixels=new Uint8Array(64*64*4);
+ for(let y=0;y<64;y++)for(let x=0;x<64;x++){
+  const i=(y*64+x)*4,v=225+((x*17+y*31+x*y*3)%23);
+  pixels[i]=pixels[i+1]=pixels[i+2]=v;pixels[i+3]=255;
+ }
+ const grain=new T.DataTexture(pixels,64,64);grain.colorSpace=T.SRGBColorSpace;
+ grain.wrapS=grain.wrapT=T.RepeatWrapping;grain.repeat.set(.7,.7);
+ grain.magFilter=T.LinearFilter;grain.minFilter=T.LinearMipmapLinearFilter;grain.generateMipmaps=true;grain.needsUpdate=true;
+ deck.map=grain;deck.addEventListener('dispose',()=>grain.dispose());
  const group=(name:string)=>{const g=new T.Group();g.name=name;root.add(g);return g;};
  const mesh=(g:T.Group,geometry:T.BufferGeometry,m:T.Material)=>{
   // bakeWorld consumes this room-owned geometry, unlike the shared mesh cache.
@@ -48,6 +60,7 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
  const guides=group('guides'),weight=group('counterweight'),sheaves=group('sheaves'),bracing=group('bracing');
  // Recessed stacked weight between a single pair of lift guides, not a rack.
  box(weight,580,-49,430,124,116,92,steel);
+ for(const x of [526,634])box(weight,x,-49,479,8,116,7,dark);
  for(const y of [-94,-69,-44,-19])box(weight,580,y,478,118,18,5,zinc);
  for(const x of [478,682]){
   box(guides,x,-17,430,13,232,20,zinc);
@@ -63,7 +76,8 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
  }
  box(guides,580,69,430,228,16,28,steel);
  for(const z of [322,530]){
-  beam(bracing,[470,-128,z],[690,-22,z],6,zinc);beam(bracing,[690,-128,z],[470,-22,z],6,zinc);
+  beam(bracing,[470,-128,z],[690,-22,z],8,zinc);beam(bracing,[690,-128,z],[470,-22,z],8,zinc);
+  for(const x of [470,690])box(bracing,x,-22,z,22,24,12,zinc);
   for(const x of [470,690])beam(bracing,[x,-132,z],[x,-8,z],7,steel);
  }
  const local=group('local-junction');
@@ -72,24 +86,53 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
  box(local,341.5,17,393,2,21,16,zinc);box(local,340.8,17,393,1,8,8,dark);
  // Empty socket and a visibly pulled fiber plug, separated by an air gap.
  box(local,349,38,409,11,4,11,dark);
- box(local,371,38,418,9,5,12,fiber);
- beam(local,[374,36,423],[376,18,426],2,fiber);
- beam(local,[376,18,426],[376,-15,426],2,fiber);
+ box(local,373,39,418,13,7,16,fiber);
+ box(local,373,39,407,9,5,5,zinc);
+ beam(local,[377,36,426],[384,18,436],3.5,fiber);
+ beam(local,[384,18,436],[384,-18,438],3.5,fiber);
  // Sign remains on the solid side. Canvas is room-local and disposed with it.
- box(local,434,9,350,172,12,32,steel);
+ box(local,434,9,300,172,12,32,steel);
  if(typeof document!=='undefined'){
   const c=document.createElement('canvas');c.width=1024;c.height=128;const ctx=c.getContext('2d');
   if(ctx){ctx.fillStyle='#27343b';ctx.fillRect(0,0,1024,128);ctx.fillStyle='#e6ba79';ctx.font='bold 72px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('LOCAL ACCESS ONLY',512,66,1000);
    const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
    const m=new T.MeshStandardMaterial({map:texture,roughness:.8});m.userData.actorMaterial=true;m.addEventListener('dispose',()=>texture.dispose());
-   const sign=mesh(local,new T.PlaneGeometry(168/U,27/U),m);sign.rotation.x=-Math.PI/2;sign.position.set(434/U,15.1/U,350/U);
+   const sign=mesh(local,new T.PlaneGeometry(168/U,27/U),m);sign.rotation.x=-Math.PI/2;sign.position.set(434/U,15.1/U,300/U);
   }
  }
  const shell=group('outer-shell');
  box(shell,600,22,-6,1200,68,12,steel);
  for(const x of [0,1200])box(shell,x,8,440,10,28,880,steel);
  box(shell,600,4,886,1200,20,12,steel);
- // Sparse flush tread bands on the two arms, never across the shaft.
- for(const z of [140,740])for(let x=72;x<1160;x+=24)box(shell,x,.1,z,3,.2,70,zinc);
+ // Recessed wall panels and exposed flanges stay beyond the legal boundary.
+ const ribs=group('wall-ribs');
+ for(let x=60;x<1200;x+=120){
+  box(ribs,x,20,-.8,108,48,1.2,dark);
+  box(ribs,x-56,22,-5,7,66,10,zinc);
+  box(ribs,x,48,-4,106,4,6,zinc);
+  if(x%240===60)box(ribs,x,43,-.6,30,4,1,amber);
+ }
+ for(const x of [-1,1201])for(let z=80;z<880;z+=120)box(ribs,x,10,z,1.5,26,10,zinc);
+ // Welded floor cassettes are flush markings, not new raised obstacles.
+ // Three runs trace the connected C, with separate short exit-side panels.
+ const finish=group('deck-finish');
+ const panel=(x:number,z:number,w:number,d:number)=>{
+  box(finish,x,.08,z,w,.16,d,steel);
+  for(const dz of [-d/2+3,d/2-3])box(finish,x,.19,z+dz,w-6,.12,1.4,grate);
+  for(const dx of [-w/2+3,w/2-3])box(finish,x+dx,.19,z,1.4,.12,d-6,grate);
+  // Dark slots with a worn zinc lip read as grating without opening the floor.
+  for(let dz=-d/2+12;dz<d/2-8;dz+=12){
+   box(finish,x,.18,z+dz,w-20,.12,3,dark);
+   box(finish,x,.27,z+dz+2,w-20,.1,1,grate);
+  }
+ };
+ for(const z of [140,740])for(let x=110;x<1200;x+=140)panel(x,z,126,104);
+ for(const z of [280,420,560])panel(180,z,104,126);
+ for(const z of [300,460])panel(1050,z,150,110);
+ // Narrow drainage seams and worn edge paint follow real shaft edges only.
+ for(const [x,z,w,d] of [[620,220,552,3],[620,660,552,3],[320,440,3,390],[920,380,3,292],[1050,520,250,3],[1050,660,250,3]]){
+  box(finish,x,.15,z,w,.2,d,dark);
+ }
+ for(const z of [228,652])for(let x=368;x<900;x+=80)box(finish,x,.22,z,32,.2,4,amber);
  return root;
 }

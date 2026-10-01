@@ -14,6 +14,28 @@ const points=[[340,240],[900,240],[900,540],[1200,540],[1200,640],[340,640]].map
 const geometry=createExpeditionGeometry({id:'shaft-test',templateId:'service-shaft-landing'} as any);
 function bake(root:T.Group){const world=new T.Group();appendEnvironment(world,root);const r=Object.create(DepthRenderer.prototype) as any;r.world=world;r.floorMaterial=new T.MeshStandardMaterial();r.bakeWorld();r.floorMaterial.dispose();world.updateMatrixWorld(true);return world;}
 describe('Room14 accepted C balcony rough placement',()=>{
+ it('owns deterministic worn deck grain and disposes its texture',()=>{
+  const root=serviceShaftLanding(template);
+  const floor=root.getObjectByName('connected-balcony')!.children[0] as T.Mesh;
+  const material=floor.material as T.MeshStandardMaterial;
+  expect(material.map).toBeInstanceOf(T.DataTexture);
+  expect((material.map as T.DataTexture).image.width).toBe(64);
+  let disposed=0;material.map!.addEventListener('dispose',()=>disposed++);
+  disposeModel(root);expect(disposed).toBe(1);
+ });
+ it('keeps new deck finish flush and wall ribs outside walking space',()=>{
+  const root=serviceShaftLanding(template);root.updateMatrixWorld(true);
+  for(const name of ['deck-finish','wall-ribs']){
+   const group=root.getObjectByName(name);expect(group).toBeTruthy();
+   expect(group!.children.length).toBeGreaterThan(12);
+   group!.traverse(o=>{if(o instanceof T.Mesh){const p=o.geometry.getAttribute('position');for(let i=0;i<p.count;i++){
+    const v=new T.Vector3().fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);
+    if(name==='deck-finish'){expect(v.y*32).toBeLessThanOrEqual(.5);expect(canOccupyExpedition(geometry,{x:v.x*32,y:v.z*32},0)).toBe(true);}
+    else expect(canOccupyExpedition(geometry,{x:v.x*32,y:v.z*32},0)).toBe(false);
+   }}});
+  }
+  disposeModel(root);
+ });
  it('installs exactly the accepted shaft and retains canonical anchors',()=>{
   expect(template.voids).toEqual([points]);expect(template.obstacles).toEqual([]);
   expect(template.spawn).toEqual({x:100,y:440});expect(template.exit).toEqual({x:1100,y:440});
