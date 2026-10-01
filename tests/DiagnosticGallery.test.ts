@@ -79,6 +79,23 @@ describe('Diagnostic gallery rough placement',()=>{
   }
   disposeModel(world);
  });
+ it('adds a flush theatre floor and outboard shell without new walkable-space solids',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'diagnostic-gallery');
+  world.updateMatrixWorld(true);
+  const shell=world.children.filter(o=>o.name.startsWith('gallery-shell-'));
+  const floor=world.children.filter(o=>o.name.startsWith('gallery-floor-'));
+  expect(shell.length).toBeGreaterThan(10);expect(floor.length).toBeGreaterThan(5);
+  for(const part of shell){const b=new T.Box3().setFromObject(part,true);expect(b.max.z).toBeLessThanOrEqual(0);}
+  for(const part of floor){
+   const b=new T.Box3().setFromObject(part,true);
+   expect(b.max.y).toBeLessThan(.015);expect(b.min.y).toBeGreaterThanOrEqual(0);
+   expect(b.min.x).toBeGreaterThanOrEqual(0);expect(b.max.x).toBeLessThanOrEqual(37.5);
+   expect(b.min.z).toBeGreaterThanOrEqual(0);expect(b.max.z).toBeLessThanOrEqual(27.5);
+  }
+  for(const part of [...shell,...floor]){const material=(part as T.Mesh).material as T.MeshStandardMaterial;expect(material.emissiveIntensity).toBeLessThanOrEqual(.2);}
+  expect(world.children.every(o=>o.name.startsWith('diagnostic-')||o.name.startsWith('gallery-'))).toBe(true);
+  disposeModel(world);
+ });
  it('does not register Room11 models into Room12',()=>{
   const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'safety-interlock-station');expect(world.children.some(o=>o.name.startsWith('diagnostic-'))).toBe(false);disposeModel(world);
  });
