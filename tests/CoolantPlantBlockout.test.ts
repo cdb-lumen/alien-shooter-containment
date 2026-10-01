@@ -1,0 +1,46 @@
+import {describe,it,expect} from 'vitest';
+import * as T from 'three';
+import {coolantPlantBlockout,coolantPlantServices} from '../src/render/CoolantPlantBlockout';
+import {environmentObstacle,environmentArchitecture,appendEnvironment} from '../src/render/ShipEnvironments';
+import {DepthRenderer} from '../src/render/DepthRenderer';
+import {ROOM_TEMPLATES} from '../src/game/roguelike/roomTemplates';
+import {createExpeditionGeometry,canTraverseExpedition,hasClearExpeditionShot} from '../src/game/world/expeditionGeometry';
+import type {RunNode} from '../src/game/roguelike/types';
+const template=ROOM_TEMPLATES['coolant-plant'];
+const node={id:'coolant-test',templateId:'coolant-plant',depth:12,kind:'combat',reward:'upgrade',next:[]} as RunNode;
+const footprints=[[300,210,150,150],[750,210,150,150],[300,540,150,150],[750,540,150,150],[550,390,100,100]];
+function bake(world:T.Group){const renderer=Object.create(DepthRenderer.prototype) as {world:T.Group;floorMaterial:T.Material;bakeWorld():void};renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();renderer.floorMaterial.dispose();return world;}
+describe('coolant plant rough placement',()=>{
+ it('retains all five accepted solid footprints and exact room registration',()=>{
+  expect(template.obstacles.map(r=>[r.x,r.y,r.width,r.height])).toEqual(footprints);
+  footprints.forEach(([x,y,width,height],index)=>{
+   const f={x:x/32,y:y/32,width:width/32,height:height/32};
+   const model=environmentObstacle('maintenance',f,index,'coolant-plant');
+   expect(model.name).toBe(index<2?'coolant-heat-exchanger':index<4?'coolant-pump-return':'coolant-service-saddle');
+   const world=new T.Group();appendEnvironment(world,model);
+   const assertBounds=()=>{const b=new T.Box3().setFromObject(world,true);expect(b.min.x).toBeCloseTo(f.x,5);expect(b.max.x).toBeCloseTo(f.x+f.width,5);expect(b.min.z).toBeCloseTo(f.y,5);expect(b.max.z).toBeCloseTo(f.y+f.height,5);expect(b.min.y).toBeCloseTo(0,5);expect(b.max.y).toBeLessThan(index===4?1.3:3);};
+   assertBounds();
+   bake(world);
+   assertBounds();
+  });
+  expect(environmentObstacle('maintenance',{x:0,y:0,width:4,height:4},0,'service-shaft-landing').name).toBe('maintenance-obstacle-0');
+ });
+ it('joins both installations and all four saddle ports with flush walkable covers',()=>{
+  const model=coolantPlantServices();
+  expect(model.userData.servicePaths).toEqual([[[375,340],[375,560]],[[825,340],[825,560]],[[375,410],[550,410]],[[375,470],[550,470]],[[650,410],[825,410]],[[650,470],[825,470]]]);
+  const b=new T.Box3().setFromObject(model,true);expect(b.max.y).toBeLessThan(.01);expect(b.min.y).toBeGreaterThanOrEqual(0);
+  const world=new T.Group();appendEnvironment(world,model);bake(world);expect(world.children.length).toBeLessThanOrEqual(3);
+  const integrated=new T.Group();environmentArchitecture(integrated,'maintenance',37.5,27.5,'coolant-plant');
+  expect(integrated.children.every(c=>c instanceof T.Mesh)).toBe(true);
+ });
+ it.each([16,28])('keeps both circuits, both saddle bypasses and exit open at radius %s',radius=>{
+  const g=createExpeditionGeometry(node);
+  const routes=[[[500,440],[500,150],[200,150],[200,750],[500,750],[500,440]],[[700,440],[700,750],[1000,750],[1000,150],[700,150],[700,440]],[[100,440],[500,440],[500,330],[700,330],[700,440],[1100,440]],[[100,440],[500,440],[500,550],[700,550],[700,440],[1100,440]]];
+  for(const route of routes)for(let i=1;i<route.length;i++){const [x,y]=route[i-1],[x2,y2]=route[i];expect(canTraverseExpedition(g,{x,y},{x:x2,y:y2},radius)).toBe(true);}
+  for(const y of [330,550])expect(hasClearExpeditionShot(g,{x:500,y},{x:700,y})).toBe(true);
+  expect(hasClearExpeditionShot(g,{x:500,y:440},{x:700,y:440})).toBe(false);
+ });
+ it('uses fewer than ten batched material draws for the complete assembly',()=>{
+  const world=new T.Group();template.obstacles.forEach((r,i)=>appendEnvironment(world,coolantPlantBlockout({x:r.x/32,y:r.y/32,width:r.width/32,height:r.height/32},i)));appendEnvironment(world,coolantPlantServices());bake(world);expect(world.children.length).toBeLessThan(10);
+ });
+});
