@@ -38,12 +38,23 @@ export function diagnosticGalleryModels():T.Group{
  pipe('purge-bus',[450,34,179],[450,64,119],3,amber);
  box('bus-cover',435,52,141,10,35,70,teal);
  for(const z of [119,149,179])box(`bus-clamp-${z}`,450,34+(179-z)/2,z,13,3,5,edge);
- // Occupied cryopod symbols are physical miniature berths, not empty lights.
+ // Tapered berth shells and separated limbs read as occupied pods at room scale.
+ // Keep the four centers, feed connections and upper-deck footprint unchanged.
  for(const [i,x] of [510,553,596,639].entries()){
-  box(`occupied-cryo-${i}`,x,65,118,29,6,21,cryo);
-  box(`cryo-window-${i}`,x,69,118,23,2,16,dark);
-  const head=add(`cryo-head-${i}`,new T.SphereGeometry(3.5/32,10,8),ivory,x-7,72,118);head.scale.y=.65;
-  box(`cryo-person-${i}`,x+3,71.5,118,12,3,6,ivory);
+  const berth=(length:number,width:number)=>[
+   {x:x-length/2,y:114},{x:x-length/2+6,y:118-width/2},
+   {x:x+length/2-6,y:118-width/2},{x:x+length/2,y:114},
+   {x:x+length/2,y:122},{x:x+length/2-6,y:118+width/2},
+   {x:x-length/2+6,y:118+width/2},{x:x-length/2,y:122},
+  ];
+  slab(`occupied-cryo-${i}`,berth(40,22),62,6,cryo);
+  slab(`cryo-window-${i}`,berth(35,17),68,.8,dark);
+  const head=add(`cryo-head-${i}`,new T.SphereGeometry(3.5/32,10,8),ivory,x-12,72,118);head.scale.y=.65;
+  slab(`cryo-person-${i}`,[{x:x-7.5,y:114},{x:x+1,y:115},{x:x+2,y:118},{x:x+1,y:121},{x:x-7.5,y:122}],69,4,ivory);
+  for(const [side,z] of [['far',-1],['near',1]] as const){
+   box(`cryo-arm-${side}-${i}`,x-2,71,118+z*6,10,3,2.5,ivory);
+   box(`cryo-leg-${side}-${i}`,x+9,71,118+z*2.75,13,3,3,ivory);
+  }
   box(`cryo-feed-${i}`,x,66,129,4,3,5,amber);
  }
  // Interrupted semicircle, low backs, recessed instrument plates facing inward.

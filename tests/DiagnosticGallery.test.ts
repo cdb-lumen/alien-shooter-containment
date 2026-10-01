@@ -51,6 +51,34 @@ describe('Diagnostic gallery rough placement',()=>{
   }
   disposeModel(world);
  });
+ it('makes four occupied berths with tapered shells and separated human limbs instead of screen markers',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'diagnostic-gallery');
+  world.updateMatrixWorld(true);
+  const bounds=(name:string)=>{
+   const mesh=world.getObjectByName(`diagnostic-${name}`);expect(mesh,name).toBeInstanceOf(T.Mesh);
+   return new T.Box3().setFromObject(mesh!,true);
+  };
+  for(let i=0;i<4;i++){
+   const shell=world.getObjectByName(`diagnostic-occupied-cryo-${i}`) as T.Mesh;
+   expect(shell.geometry.type).toBe('ExtrudeGeometry');
+   const berth=bounds(`occupied-cryo-${i}`),size=berth.getSize(new T.Vector3());
+   expect(size.x/size.z).toBeGreaterThan(1.7);
+   expect(size.x*32).toBeGreaterThanOrEqual(39);
+   const head=bounds(`cryo-head-${i}`),torso=bounds(`cryo-person-${i}`);
+   expect(head.max.x).toBeLessThan(torso.min.x);
+   for(const side of ['near','far']){
+    const arm=bounds(`cryo-arm-${side}-${i}`),leg=bounds(`cryo-leg-${side}-${i}`);
+    expect(leg.min.x).toBeGreaterThan(torso.min.x);
+    for(const part of [head,torso,arm,leg]){
+     expect(part.min.x).toBeGreaterThan(berth.min.x);expect(part.max.x).toBeLessThan(berth.max.x);
+     expect(part.min.z).toBeGreaterThan(berth.min.z);expect(part.max.z).toBeLessThan(berth.max.z);
+     expect(part.min.y).toBeGreaterThanOrEqual(berth.max.y);
+    }
+   }
+   expect(bounds(`cryo-leg-far-${i}`).max.z).toBeLessThan(bounds(`cryo-leg-near-${i}`).min.z);
+  }
+  disposeModel(world);
+ });
  it('does not register Room11 models into Room12',()=>{
   const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'safety-interlock-station');expect(world.children.some(o=>o.name.startsWith('diagnostic-'))).toBe(false);disposeModel(world);
  });
