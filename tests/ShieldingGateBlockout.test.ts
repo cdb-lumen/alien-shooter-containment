@@ -39,6 +39,38 @@ describe('Room17 rough shield gate',()=>{
    expect(b.min.z*32).toBeGreaterThanOrEqual(345-1e-5);expect(b.max.z*32).toBeLessThanOrEqual(435+1e-5);
   }
  });
+ it('uses room-local dull shielding, brushed contacts and nonemissive service paint',()=>{
+  for(const model of models()){
+   const layer=model.getObjectByName('backing-layer-0') as T.Mesh;
+   const lead=layer.material as T.MeshStandardMaterial;
+   expect(lead.name).toBe('shielding-gate-lead');
+   expect(lead.roughness).toBeGreaterThanOrEqual(.75);
+   expect(Math.max(lead.color.r,lead.color.g,lead.color.b)).toBeLessThan(.3);
+  }
+  const west=models()[0];
+  const steel=(west.getObjectByName('contact-edge-0') as T.Mesh).material as T.MeshStandardMaterial;
+  expect(steel.name).toBe('shielding-gate-contact');expect(steel.roughness).toBeGreaterThan(.4);
+  west.traverse(o=>{if(o instanceof T.Mesh){const m=o.material as T.MeshStandardMaterial;expect(m.emissive.getHex()).toBe(0);}});
+ });
+ it('breaks long shielding shells into recessed cassettes and connected transverse saddles',()=>{
+  for(const model of models()){
+   expect(named(model,'shell-cassette-').length).toBeGreaterThanOrEqual(6);
+   expect(named(model,'shell-saddle-').length).toBeGreaterThanOrEqual(2);
+  }
+ });
+ it('has tapered static locks, recessed seals and dosimeter wells in both gate heads',()=>{
+  for(const i of [0,2]){
+   const model=models()[i];
+   const wedge=model.getObjectByName('locking-wedge') as T.Mesh;
+   expect(wedge).toBeDefined();
+   const p=wedge.geometry.getAttribute('position');
+   const xs=new Set(Array.from({length:p.count},(_,n)=>p.getX(n).toFixed(3)));
+   expect(xs.size).toBeGreaterThanOrEqual(3);
+   expect(named(model,'compression-seal-')).toHaveLength(3);
+   expect(named(model,'dosimeter-well')).toHaveLength(1);
+   expect(named(model,'bearing-collar-')).toHaveLength(2);
+  }
+ });
  it('leaves the other containment room on its existing model path',()=>{
   const r=environmentObstacle('containment',{x:0,y:0,width:3,height:8},0,'containment-annulus');
   expect(r.name).toBe('containment-obstacle-0');expect(named(r,'shield-leaf-')).toHaveLength(0);
