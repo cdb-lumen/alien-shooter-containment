@@ -3,6 +3,8 @@ import * as T from 'three';
 import {SHIP_ENVIRONMENTS,appendEnvironment,environmentArchitecture,environmentObstacle,shipEnvironment,type ShipEnvironment} from '../src/render/ShipEnvironments';
 import {MAT,disposeModel,geometries} from '../src/render/meshParts';
 import {DepthRenderer} from '../src/render/DepthRenderer';
+import {WORKSHOP_MAT} from '../src/render/InfestedWorkshopMaterials';
+const sharedMaterials=[...Object.values(MAT),...new Set(Object.values(WORKSHOP_MAT))];
 
 // Independent route contract: do not derive expected IDs from the renderer table.
 const rooms:Record<ShipEnvironment,string[]>={
@@ -42,11 +44,11 @@ describe('ship environments',()=>{
    const world=new T.Group();environmentArchitecture(world,env,32,24);
    appendEnvironment(world,environmentObstacle(env,{x:5,y:5,width:4,height:8},0,rooms[env][0]));
    const originals=meshes(world),sharedGeometry=new Set(originals.map(m=>m.geometry));
-   const ownedMaterials=new Set(originals.map(m=>m.material as T.MeshStandardMaterial).filter(m=>!Object.values(MAT).includes(m)));
+   const ownedMaterials=new Set(originals.map(m=>m.material as T.MeshStandardMaterial).filter(m=>!sharedMaterials.includes(m)));
    if(env==='habitation'){expect(ownedMaterials.size).toBe(4);for(const m of ownedMaterials)expect(m.userData.actorMaterial).toBe(true);}else expect(ownedMaterials.size).toBe(0);
    expect([...sharedGeometry].every(g=>[...geometries.values()].includes(g))).toBe(true);
    const geometrySpies=[...sharedGeometry].map(g=>vi.spyOn(g,'dispose'));
-   const materialSpies=Object.values(MAT).map(m=>vi.spyOn(m,'dispose'));
+   const materialSpies=sharedMaterials.map(m=>vi.spyOn(m,'dispose'));
    const ownedMaterialSpies=[...ownedMaterials].map(m=>vi.spyOn(m,'dispose'));
    try{
     // Exercise the real material batching path without constructing a WebGL context.

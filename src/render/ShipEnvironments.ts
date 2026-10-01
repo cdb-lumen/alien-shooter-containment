@@ -2,6 +2,7 @@ import * as T from 'three';
 import {MAT,box,ball,rod,ring,shell,geometry} from './meshParts';
 import {residentialGalleryBlockout} from './ResidentialGalleryBlockout';
 import {infestedWorkshop} from './InfestedWorkshop';
+import {infestedWorkshopArchitecture} from './InfestedWorkshopArchitecture';
 
 export const SHIP_ENVIRONMENTS=['cryogenics','habitation','security','cargo','communications','engineering','maintenance','infested','containment','reactor'] as const;
 export type ShipEnvironment=typeof SHIP_ENVIRONMENTS[number];
@@ -165,6 +166,7 @@ export function appendEnvironment(parent:T.Group,model:T.Group){
 
 /** Flush deck inlays and outboard rear architecture never occupy a walkable tile. */
 export function environmentArchitecture(parent:T.Group,env:ShipEnvironment,w:number,h:number,templateId=''){
+ if(env==='infested'&&templateId==='infested-workshop')return infestedWorkshopArchitecture(parent,w,h);
  const residential=env==='habitation'&&templateId==='residential-gallery';
  const accent=env==='habitation'?MAT.bone:env==='infested'?MAT.acid:['security','engineering','containment','maintenance'].includes(env)?MAT.amber:MAT.cyan;
  const inlay=(x:number,z:number,width:number,depth:number,mat:T.Material)=>{const m=box(parent,x,-.007,z,width,.018,depth,mat,0);m.castShadow=false;return m;};

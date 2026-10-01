@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import * as T from 'three';
-import {environmentObstacle,appendEnvironment} from '../src/render/ShipEnvironments';
+import {environmentObstacle,appendEnvironment,environmentArchitecture} from '../src/render/ShipEnvironments';
 import {DepthRenderer} from '../src/render/DepthRenderer';
 import {ROOM_TEMPLATES} from '../src/game/roguelike/roomTemplates';
 import {MAT,disposeModel} from '../src/render/meshParts';
@@ -9,6 +9,27 @@ const solids=ROOM_TEMPLATES['infested-workshop'].obstacles;
 const models=()=>solids.map((f,i)=>environmentObstacle('infested',{x:f.x/32,y:f.y/32,width:f.width/32,height:f.height/32},i,'infested-workshop'));
 const bounds=(o:T.Object3D)=>new T.Box3().setFromObject(o,true);
 describe('Room15 rough machinery',()=>{
+ it('uses room-local worn paint and matte longitudinal resin without emissive poison',()=>{
+  const first=models()[0],second=models()[0];
+  const paint=(first.getObjectByName('headstock') as T.Mesh).material as T.MeshStandardMaterial;
+  const resin=(first.getObjectByName('directional-resin') as T.Mesh).material as T.MeshStandardMaterial;
+  expect(paint).not.toBe(MAT.trim);expect(paint.map).toBeInstanceOf(T.DataTexture);
+  expect(resin.roughness).toBeGreaterThan(.9);expect(resin.metalness).toBe(0);
+  expect(resin.map).toBeInstanceOf(T.DataTexture);expect(resin.emissive.getHex()).toBe(0);
+  expect((second.getObjectByName('headstock') as T.Mesh).material).toBe(paint);
+  expect(first.getObjectByName('resin-fiber')).toBeDefined();
+ });
+ it('keeps the workshop shell outboard and deck markings flush with no free growth puddles',()=>{
+  const shell=new T.Group();environmentArchitecture(shell,'infested',37.5,27.5,'infested-workshop');
+  expect(shell.getObjectByName('workshop-rear-cassette')).toBeDefined();
+  expect(shell.getObjectByName('workshop-deck-seam')).toBeDefined();
+  shell.traverse(o=>{if(o instanceof T.Mesh){
+   const b=bounds(o);expect(b.max.y<=.011||b.max.z<=.001).toBe(true);
+   expect((o.material as T.MeshStandardMaterial).emissive.getHex()).toBe(0);
+  }});
+  const neighbor=new T.Group();environmentArchitecture(neighbor,'infested',37.5,27.5,'swarm-junction');
+  expect(neighbor.getObjectByName('workshop-rear-cassette')).toBeUndefined();
+ });
  it('places a lathe and articulated manipulator on the original first island',()=>{
   const model=models()[0];
   for(const name of ['lathe-bed','chuck','carriage','way-front','way-rear','broken-guard','arm-upper','arm-forearm','tendon-brace','suspended-workpiece','peeled-insulation'])expect(model.getObjectByName(name),name).toBeDefined();

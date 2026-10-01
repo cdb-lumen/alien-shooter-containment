@@ -1,8 +1,9 @@
 import * as T from 'three';
-import {MAT,box,rod,ring,shell} from './meshParts';
+import {box,rod,ring,shell} from './meshParts';
+import {WORKSHOP_MAT as MAT} from './InfestedWorkshopMaterials';
 import type {Footprint} from './ShipEnvironments';
 
-/** Room15 stage2: one recognizable machine per retained collision island. */
+/** Room15 stage3: major machinery and room-local material treatment. */
 export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
  const root=new T.Group(),cell=new T.Group();root.add(cell);
  const roles=['lathe-manipulator','fixture-bench','gantry','stock-cabinet'];
@@ -15,8 +16,15 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
   const mesh=rod(cell,a,c,r,r,m);mesh.name=name;return mesh;
  };
  const rib=(x:number,z:number,top:number)=>{
-  link('directional-resin',v(x-.18,.14,z+.22),v(x,.6,z),.09,MAT.flesh);
-  link('directional-resin',v(x,.6,z),v(x+.15,top,z-.12),.065,MAT.flesh);
+  // Bundled fibers rise along the fixed casting, not out into the aisle.
+  const a=v(x-.12,.42,z+.09),mid=v(x,.95,z+.1),end=v(x+.12,top,z-.08);
+  link('directional-resin',a,mid,.11,MAT.flesh);
+  link('directional-resin',mid,end,.085,MAT.flesh);
+  for(const offset of [-.065,0,.065]){
+   const shift=v(offset,.012,.075);
+   link('resin-fiber',a.clone().add(shift),mid.clone().add(shift),.019,MAT.flesh);
+   link('resin-fiber',mid.clone().add(shift),end.clone().add(shift),.014,MAT.flesh);
+  }
  };
  if(index%4===0){
   // Long axis follows the original northwest island, operator faces south.
@@ -53,7 +61,15 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
    link('gripper',v(x,2.24,0),v(x,1.82,0),.065,MAT.black);
   }
   link('suspended-workpiece',v(-.72,1.77,0),v(.17,1.77,0),.16,MAT.copper);
-  for(const x of [-2.05,-1.72,-1.42])rib(x,.56,1.84);
+  for(const x of [-2.13,-1.88,-1.63]){
+   rib(x,.62,2.08);
+   link('housing-resin-wrap',v(x+.12,2.08,.54),v(x+.22,2.12,-.36),.065,MAT.flesh);
+  }
+  // Broad attached apron establishes the fixed machine mass at gameplay scale.
+  b('bed-apron',-.1,.74,.69,4.25,.36,.12,MAT.steel);
+  for(const x of [-1.8,-1.48])b('apron-worn-paint',x,.76,.765,.22,.25,.025,MAT.trim);
+  for(const offset of [-.07,.07])link('tendon-fiber',v(1.45+offset,1.08,-.7),elbow.clone().add(v(.14+offset,-.12,.04)),.026,MAT.flesh);
+  link('wet-resin-seam',v(-2.03,1.42,.72),v(-1.97,1.75,.64),.018,MAT.wet);
   const socket=shell(cell,1.2,.7,-.68,.3,.22,.8,MAT.flesh);socket.name='asymmetric-growth-socket';
   for(let i=0;i<3;i++){
    link('peeled-insulation',v(.72+i*.07,1.93,-.93),v(.25+i*.08,1.45,-.96),.025,MAT.rubber);
