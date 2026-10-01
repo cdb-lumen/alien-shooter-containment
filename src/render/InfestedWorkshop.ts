@@ -19,13 +19,15 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
  // ridges break the parallel cable silhouette without scattering loose tendrils.
  const web=(name:string,points:T.Vector3[],widths:number[],owners:string[],side=v(1,0,0))=>{
   const vertices:number[]=[],uv:number[]=[],indices:number[]=[],sides=8;
-  const normal=new T.Vector3().crossVectors(side,points.at(-1)!.clone().sub(points[0])).normalize();
+  const normals=points.map((_,i)=>new T.Vector3().crossVectors(side,
+   points[Math.min(i+1,points.length-1)].clone().sub(points[Math.max(0,i-1)])).normalize());
   points.forEach((p,row)=>{
+   const normal=normals[row];
    for(let j=0;j<=sides;j++){
     const angle=j/sides*Math.PI*2;
     const q=p.clone().addScaledVector(side,Math.cos(angle)*widths[row])
      .addScaledVector(normal,Math.sin(angle)*(.045+widths[row]*.12));
-    vertices.push(q.x,q.y,q.z);uv.push(j/sides,row/(points.length-1));
+    vertices.push(q.x,q.y,q.z);uv.push(j/sides*.08,row/(points.length-1)*.3);
     if(row<points.length-1&&j<sides){const a=row*(sides+1)+j,c=a+sides+1;indices.push(a,c,a+1,a+1,c,c+1);}
    }
   });
@@ -39,10 +41,9 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
   const mesh=new T.Mesh(geometry,MAT.flesh);mesh.name=name;mesh.castShadow=mesh.receiveShadow=true;cell.add(mesh);
   mesh.userData.widths=widths;
   mesh.userData.anchors=[{point:points[0].toArray(),owner:owners[0]},{point:points.at(-1)!.toArray(),owner:owners[1]}];
-  for(const shift of [-.48,.15,.58]){
-   const fiber=points.map((p,i)=>p.clone().addScaledVector(side,widths[i]*shift).addScaledVector(normal,.065));
-   for(let i=1;i<fiber.length;i++)link('resin-fiber',fiber[i-1],fiber[i],.022,MAT.flesh);
-  }
+  // A single raised seam avoids the previous parallel striped fringe.
+  const fiber=points.map((p,i)=>p.clone().addScaledVector(side,widths[i]*.15).addScaledVector(normals[i],.065));
+  for(let i=1;i<fiber.length;i++)link('resin-fiber',fiber[i-1],fiber[i],.035,MAT.flesh);
  };
  const rib=(x:number,z:number,top:number)=>{
   const a=v(x-.12,.42,z+.09),mid=v(x,.95,z+.1),end=v(x+.12,top,z-.08);
@@ -90,8 +91,12 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
   link('arm-upper',shoulder,elbow,.16,MAT.trim);
   link('arm-forearm',elbow,wrist,.12,MAT.trim);
   for(const p of [shoulder,elbow,wrist])link('arm-hinge',p.clone().add(v(0,0,-.15)),p.clone().add(v(0,0,.15)),.23,MAT.edge);
-  web('tendon-brace',[v(.76,1.31,-.79),v(.59,1.66,-.71),v(.26,2.17,-.6),v(-.04,2.72,-.6)],
-   [.28,.17,.095,.2],['arm-foot','arm-upper']);
+  // The brace bows outboard of the column so its span is not buried in the arm.
+  // Both broad cuffs intersect their mechanical owners and the membrane ends.
+  web('tendon-brace',[v(.98,1.24,-.83),v(1.28,1.65,-.68),v(.91,2.23,-.58),v(.04,2.75,-.66)],
+   [.29,.22,.18,.27],['arm-foot','arm-upper']);
+  const footCuff=shell(cell,.98,1.27,-.83,.32,.18,.25,MAT.flesh);footCuff.name='tendon-foot-cuff';
+  const armCuff=shell(cell,.04,2.75,-.66,.27,.2,.23,MAT.flesh);armCuff.name='tendon-arm-cuff';
   // Coaxial stock is seated in the chuck and tailstock. Opposed gripper pads
   // close around it from front and rear, with a supported wrist crosshead.
   b('gripper-crosshead',-.2,2.2,0,.35,.16,.76,MAT.black);
@@ -100,23 +105,25 @@ export function infestedWorkshop(footprint:Footprint,index:number):T.Group{
    b(`gripper-pad-${name}`,-.2,1.67,z,.32,.22,.34,MAT.black);
   }
   link('suspended-workpiece',v(-.87,1.67,0),v(1.25,1.67,0),.16,MAT.copper);
-  // Two broad, unequal attachment patches replace the three hanging loops.
-  web('directional-resin',[v(-1.98,1.02,.56),v(-1.89,1.3,.63),v(-1.7,1.7,.63),v(-1.91,2.06,.5)],
-   [.34,.23,.16,.3],['lathe-bed','headstock']);
-  web('directional-resin',[v(-1.33,1.04,.52),v(-1.48,1.25,.64),v(-1.4,1.52,.62),v(-1.29,1.83,.54)],
-   [.25,.12,.19,.21],['lathe-bed','headstock']);
+  // Thick connected lobes climb the operator face and fold across the roof.
+  // The upper contact occupies the visible top plane, not only the front lip.
+  web('directional-resin',[v(-1.98,1.02,.56),v(-1.97,1.6,.68),v(-1.99,2.16,.57),v(-1.96,2.17,.04),v(-1.96,2.06,-.3)],
+   [.34,.31,.36,.29,.27],['lathe-bed','headstock']);
+  web('directional-resin',[v(-1.42,1.04,.52),v(-1.56,1.55,.68),v(-1.63,2.16,.57),v(-1.69,2.18,.15),v(-1.63,2.06,-.19)],
+   [.25,.23,.27,.22,.21],['lathe-bed','headstock']);
   // Broad attached apron establishes the fixed machine mass at gameplay scale.
   b('bed-apron',-.1,.74,.69,4.25,.36,.12,MAT.steel);
   for(const x of [-1.8,-1.48])b('apron-worn-paint',x,.76,.765,.22,.25,.025,MAT.trim);
   link('wet-resin-seam',v(-2.03,1.42,.66),v(-1.97,1.75,.64),.018,MAT.wet);
   const socket=shell(cell,.78,1.3,-.76,.3,.13,.42,MAT.flesh);socket.name='asymmetric-growth-socket';
-  // A clamped supply sheath ends above a separate peeled flap. Copper cores
-  // stop short of the cut stub, leaving a visible disconnection on the arm side.
-  b('cable-clamp',.87,1.73,-.94,.39,.17,.18,MAT.edge);
-  link('insulation-cut-stub',v(.85,1.99,-.94),v(.85,1.64,-.94),.12,MAT.rubber);
-  const flap=b('peeled-insulation',.78,1.36,-.96,.32,.34,.075,MAT.rubber);flap.rotation.z=-.38;
+  // The torn supply runs across the exposed rear shoulder, above the bed.
+  // One end enters the column. The other returns to the foot, with a wide gap.
+  b('cable-clamp',.82,2.01,-.96,.22,.34,.32,MAT.edge);
+  link('insulation-cut-stub',v(.72,2.02,-.94),v(1.32,2.02,-.94),.14,MAT.rubber);
+  link('insulation-return',v(.99,1.22,-.97),v(1.91,1.55,-.94),.16,MAT.rubber);
+  const flap=b('peeled-insulation',2.01,1.48,-.88,.38,.44,.1,MAT.rubber);flap.rotation.z=-.55;
   for(let i=0;i<3;i++){
-   link('cut-copper-end',v(.67+i*.08,1.43,-.98),v(.65+i*.08,1.55,-.97),.023,MAT.copper);
+   link('cut-copper-end',v(1.28,2.02,-1.02+i*.08),v(1.55,2.05,-1.02+i*.08),.036,MAT.copper);
   }
   // Coarse missing-paint patches only, not final surface texturing.
   b('chipped-yellow',-1.96,2.106,.12,.35,.014,.25,MAT.steel);

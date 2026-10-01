@@ -24,6 +24,47 @@ describe('Room15 rough machinery',()=>{
   }
   expect(model.getObjectByName('housing-resin-wrap')).toBeUndefined();
  });
+ it('carries broad resin over the headstock roof rather than leaving a front fringe',()=>{
+  const model=models()[0],cell=model.children[0];
+  cell.updateMatrixWorld(true);
+  const roof=(model.getObjectByName('headstock') as T.Mesh).position.y+.55;
+  const webs:T.Mesh[]=[];model.traverse(o=>{if(o instanceof T.Mesh&&o.name==='directional-resin')webs.push(o);});
+  for(const web of webs){
+   const positions=web.geometry.getAttribute('position');const top=new T.Box3();
+   for(let i=0;i<positions.count;i++)if(positions.getY(i)>roof)top.expandByPoint(new T.Vector3().fromBufferAttribute(positions,i));
+   expect(top.isEmpty()).toBe(false);
+   expect(top.getSize(new T.Vector3()).z).toBeGreaterThan(.55);
+   expect(top.getSize(new T.Vector3()).x).toBeGreaterThan(.35);
+  }
+ });
+ it('anchors a substantial tendon outside the column silhouette at both ends',()=>{
+  const model=models()[0];model.updateMatrixWorld(true);
+  const brace=model.getObjectByName('tendon-brace') as T.Mesh;
+  for(const anchor of brace.userData.anchors as {point:number[];owner:string}[]){
+   const point=brace.parent!.localToWorld(new T.Vector3().fromArray(anchor.point));
+   expect(bounds(model.getObjectByName(anchor.owner)!).containsPoint(point),anchor.owner).toBe(true);
+  }
+  brace.geometry.computeBoundingBox();
+  expect(brace.geometry.boundingBox!.max.x).toBeGreaterThan(1.2);
+  expect(Math.min(...brace.userData.widths)).toBeGreaterThanOrEqual(.18);
+  for(const name of ['tendon-foot-cuff','tendon-arm-cuff'])expect(model.getObjectByName(name)).toBeDefined();
+ });
+ it('connects visible severed supply pieces to the machine with an open cut gap',()=>{
+  const model=models()[0];model.updateMatrixWorld(true);
+  const upstream=model.getObjectByName('insulation-cut-stub')!;
+  const downstream=model.getObjectByName('insulation-return')!;
+  expect(downstream).toBeDefined();
+  expect(bounds(upstream).intersectsBox(bounds(model.getObjectByName('arm-column')!))).toBe(true);
+  expect(bounds(downstream).intersectsBox(bounds(model.getObjectByName('arm-foot')!))).toBe(true);
+  expect(bounds(upstream).intersectsBox(bounds(downstream))).toBe(false);
+  expect(bounds(model.getObjectByName('peeled-insulation')!).intersectsBox(bounds(downstream))).toBe(true);
+  const cores:T.Object3D[]=[];model.traverse(o=>{if(o.name==='cut-copper-end')cores.push(o);});
+  expect(cores).toHaveLength(3);
+  for(const core of cores){
+   expect(bounds(core).intersectsBox(bounds(upstream))).toBe(true);
+   expect(bounds(core).intersectsBox(bounds(downstream))).toBe(false);
+  }
+ });
  it('holds coaxial stock in the chuck and tailstock with contacting gripper pads',()=>{
   const model=models()[0];model.updateMatrixWorld(true);
   const piece=bounds(model.getObjectByName('suspended-workpiece')!);
