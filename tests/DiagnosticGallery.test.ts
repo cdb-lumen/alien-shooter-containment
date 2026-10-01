@@ -96,6 +96,28 @@ describe('Diagnostic gallery rough placement',()=>{
   expect(world.children.every(o=>o.name.startsWith('diagnostic-')||o.name.startsWith('gallery-'))).toBe(true);
   disposeModel(world);
  });
+ it('builds ten sloped instrument housings on recessed console cabinets',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'diagnostic-gallery');world.updateMatrixWorld(true);
+  for(const id of ['west-low-console','east-low-console']){
+   const base=world.getObjectByName(`diagnostic-${id}`)!;
+   const body=world.getObjectByName(`diagnostic-${id}-cabinet`);
+   expect(body).toBeInstanceOf(T.Mesh);
+   const baseBounds=new T.Box3().setFromObject(base,true),bodyBounds=new T.Box3().setFromObject(body!,true);
+   expect(baseBounds.max.y).toBeCloseTo(4/32);
+   expect(bodyBounds.min.y).toBeCloseTo(baseBounds.max.y);
+   for(let i=0;i<5;i++){
+    const hood=world.getObjectByName(`diagnostic-${id}-instrument-hood-${i}`) as T.Mesh;
+    expect(hood).toBeInstanceOf(T.Mesh);
+    const positions=hood.geometry.getAttribute('position');
+    const heights=new Set(Array.from({length:positions.count},(_,j)=>Math.round(positions.getY(j)*3200)));
+    expect(heights.size).toBeGreaterThanOrEqual(3);
+    const b=new T.Box3().setFromObject(hood,true);
+    expect(b.max.y*32).toBeGreaterThan(36);expect(b.min.y*32).toBeCloseTo(23);
+    for(const part of ['gauge','selector','switch-guard'])expect(world.getObjectByName(`diagnostic-${id}-${part}-${i}`)).toBeInstanceOf(T.Mesh);
+   }
+  }
+  disposeModel(world);
+ });
  it('does not register Room11 models into Room12',()=>{
   const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'safety-interlock-station');expect(world.children.some(o=>o.name.startsWith('diagnostic-'))).toBe(false);disposeModel(world);
  });

@@ -2,7 +2,7 @@ import * as T from 'three';
 import {diagnosticConsolePolygon} from '../game/roguelike/diagnosticGalleryLayout';
 import type {Point} from '../game/roguelike/types';
 
-/** Stage2 room-local rough models. No shared assets, lights or interactions. */
+/** Room-local cutaway and instrument banks. No shared assets or interactions. */
 export function diagnosticGalleryModels():T.Group{
  const root=new T.Group();root.name='diagnostic-gallery-rough-models';
  const mat=(color:number,emissive=0)=>{const m=new T.MeshStandardMaterial({color,roughness:.7,metalness:.25,emissive,emissiveIntensity:emissive?.45:0});m.userData.actorMaterial=true;return m;};
@@ -57,18 +57,37 @@ export function diagnosticGalleryModels():T.Group{
   }
   box(`cryo-feed-${i}`,x,66,129,4,3,5,amber);
  }
- // Interrupted semicircle, low backs, recessed instrument plates facing inward.
+ // Recessed cabinets support separate sloped instrument housings. The plinth
+ // retains the approved solid footprint; all controls face the inner theatre.
  for(const [id,start,end] of [['west-low-console',112,155],['east-low-console',25,68]] as const){
   owner=id;
-  slab(id,diagnosticConsolePolygon(start+.3,end-.3,301,349),0,23,teal);
-  slab(`${id}-top`,diagnosticConsolePolygon(start+.6,end-.6,303,347),23,5,ivory);
-  slab(`${id}-low-back`,diagnosticConsolePolygon(start+.8,end-.8,343,347),28,6,teal);
+  slab(id,diagnosticConsolePolygon(start+.3,end-.3,301,349),0,4,dark);
+  slab(`${id}-cabinet`,diagnosticConsolePolygon(start+.6,end-.6,307,343),4,19,teal);
+  slab(`${id}-top`,diagnosticConsolePolygon(start+.6,end-.6,303,347),23,2,edge);
   for(let i=0;i<5;i++){
-   const a=(start+5+(end-start-10)*i/4)*Math.PI/180,x=600+325*Math.cos(a),z=220+325*Math.sin(a),angle=-a-Math.PI/2;
-   const panel=box(`${id}-gauge-recess-${i}`,x,29,z,28,2,26,dark);panel.rotation.y=angle;
-   const dial=add(`${id}-gauge-${i}`,new T.CylinderGeometry(7/32,7/32,2/32,12),cryo,x,31,z);
-   dial.rotation.y=angle;
-   const needle=box(`${id}-needle-${i}`,x,32.5,z,2,1,9,ivory);needle.rotation.y=angle+.5;
+   const a=(start+5+(end-start-10)*i/4)*Math.PI/180;
+   const x=600+325*Math.cos(a),z=220+325*Math.sin(a),angle=Math.PI/2-a;
+   const housing=new T.BoxGeometry(36/32,1,40/32);
+   const vertices=housing.getAttribute('position');
+   for(let j=0;j<vertices.count;j++)vertices.setY(j,(vertices.getY(j)>0?32+vertices.getZ(j)*8:23)/32);
+   housing.computeVertexNormals();
+   const hood=add(`${id}-instrument-hood-${i}`,housing,ivory,x,0,z);hood.rotation.y=angle;
+   const slope=Math.atan(.25);
+   // Local Z points outwards. Controls sit on, and tilt with, the wedge face.
+   const mounted=(name:string,g:T.BufferGeometry,m:T.Material,u:number,v:number,lift:number)=>{
+    const h=32+v*.25+lift;
+    const mesh=add(`${id}-${name}-${i}`,g,m,x+u*Math.cos(angle)+v*Math.sin(angle),h,z-u*Math.sin(angle)+v*Math.cos(angle));
+    mesh.quaternion.setFromEuler(new T.Euler(-slope,angle,0,'YXZ'));return mesh;
+   };
+   mounted('gauge-recess',new T.BoxGeometry(30/32,.8/32,32/32),dark,0,0,.4);
+   mounted('gauge-rim',new T.CylinderGeometry(8.5/32,8.5/32,1.5/32,16),edge,-4,5,1.3);
+   mounted('gauge',new T.CylinderGeometry(6.5/32,6.5/32,1.6/32,16),cryo,-4,5,2);
+   const needle=mounted('needle',new T.BoxGeometry(1.6/32,.8/32,8/32),ivory,-4,5,3.2);needle.rotateY(.5);
+   mounted('selector',new T.CylinderGeometry(4/32,5/32,3/32,8),edge,8,-8,2.1);
+   mounted('switch-guard',new T.BoxGeometry(9/32,3/32,7/32),ivory,-7,-9,1.8);
+   mounted('switch',new T.BoxGeometry(3/32,4/32,5/32),amber,-7,-9,3.4);
+   // Full-height radial cabinet seams are visible from the normal approach.
+   const seam=box(`${id}-cabinet-seam-${i}`,600+343*Math.cos(a),14,220+343*Math.sin(a),2,17,1,dark);seam.rotation.y=angle;
   }
  }
  return root;
