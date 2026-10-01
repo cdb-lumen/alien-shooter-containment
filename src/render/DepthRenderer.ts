@@ -8,6 +8,7 @@ import {ActorPool} from './ActorPool';
 import type {GraphicsTier} from './FrameBudget';
 import {EnvironmentMaterials} from './EnvironmentMaterials';
 import {shipEnvironment,environmentObstacle,environmentArchitecture,appendEnvironment,type ShipEnvironment} from './ShipEnvironments';
+import {serviceShaftLanding} from './ServiceShaftLanding';
 import * as T from 'three';
 import {EnemyHealthBars} from './EnemyHealthBars';
 import {AttackEffects} from './AttackEffects';
@@ -145,11 +146,11 @@ export class DepthRenderer {
   const t=ROOM_TEMPLATES[node.templateId],w=t.width/UNIT,h=t.height/UNIT;
   this.corpseIds?.clear();this.staticDirty=false;const staticLoaded=this.staticLoaded(this.world);
   this.muzzle.intensity=0;this.contacts.begin();this.contacts.end();
-  const bespoke=authoredRoom(node.templateId,t);
+  const bespoke=node.templateId==='service-shaft-landing'?serviceShaftLanding(t):authoredRoom(node.templateId,t);
   const act=Math.min(2,Math.floor(node.depth/4));this.surfaces.theme(act);if(environment)this.surfaces.shipTheme(environment);
   // Room-local habitation finish; theme() resets it on every subsequent room.
   if(node.templateId==='residential-gallery'){this.surfaces.floor.color.setHex(0x747976);this.surfaces.wall.color.setHex(0x788687);}
-  if(bespoke){this.world.add(bespoke);if(node.templateId==='passenger-vault')this.passengerVault=attachPassengerVault(bespoke,staticLoaded);if(node.templateId==='awakening-bay'){this.sealedBank=attachSealedBank(bespoke,staticLoaded);this.releasedBerth=attachReleasedBerth(bespoke,staticLoaded);this.recoveryKit=attachRecoveryKit(bespoke,staticLoaded);}}else{
+  if(bespoke){if(node.templateId==='service-shaft-landing'){appendEnvironment(this.world,bespoke);this.bakeWorld();}else this.world.add(bespoke);if(node.templateId==='passenger-vault')this.passengerVault=attachPassengerVault(bespoke,staticLoaded);if(node.templateId==='awakening-bay'){this.sealedBank=attachSealedBank(bespoke,staticLoaded);this.releasedBerth=attachReleasedBerth(bespoke,staticLoaded);this.recoveryKit=attachRecoveryKit(bespoke,staticLoaded);}}else{
   const floor=box(this.world,w/2,-.18,h/2,w,.32,h,this.floorMaterial,0);floor.receiveShadow=true;this.surfaces.uv(floor,3.2);
   box(this.world,w/2,-.57,h/2,w+.6,.5,h+.6,MAT.black);
   // Low foreground parapets and tall rear bulkheads keep combat readable.
