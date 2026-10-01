@@ -118,6 +118,42 @@ describe('Diagnostic gallery rough placement',()=>{
   }
   disposeModel(world);
  });
+ it('connects both actual cabinets to the board through flush covered service trunks',()=>{
+  const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'diagnostic-gallery');world.updateMatrixWorld(true);
+  const bounds=(name:string)=>{
+   const mesh=world.getObjectByName(name);expect(mesh,name).toBeInstanceOf(T.Mesh);
+   return new T.Box3().setFromObject(mesh!,true);
+  };
+  for(const side of ['west','east']){
+   // Axis-aligned trunk sections must overlap at each joint, including the
+   // vertical sockets on the real cabinet and pedestal, not just nearby marks.
+   const names=[`diagnostic-${side}-low-console-cabinet`,`diagnostic-${side}-service-drop`,
+    `gallery-floor-${side}-service-long`,`gallery-floor-${side}-service-turn`,
+    `diagnostic-${side}-board-socket`,'diagnostic-physical-ship-cutaway'];
+   for(let i=1;i<names.length;i++)expect(bounds(names[i-1]).intersectsBox(bounds(names[i])),`${names[i-1]} joins ${names[i]}`).toBe(true);
+   // AABB overlap alone can lie for a curved cabinet. Raycast the actual
+   // cabinet underside inside the drop, and the pedestal inside its socket.
+   for(const [terminal,body] of [[names[1],names[0]],[names[4],names[5]]]){
+    const b=bounds(terminal),p=b.getCenter(new T.Vector3());p.y=-1;
+    const hits=new T.Raycaster(p,new T.Vector3(0,1,0)).intersectObject(world.getObjectByName(body)!);
+    expect(hits.length,`${terminal} intersects real ${body} triangles`).toBeGreaterThan(0);
+    expect(hits[0].point.y).toBeGreaterThanOrEqual(b.min.y-1e-6);
+    expect(hits[0].point.y).toBeLessThan(b.max.y);
+   }
+   for(const suffix of ['service-drop','board-socket']){
+    const b=bounds(`diagnostic-${side}-${suffix}`);
+    expect(b.min.y).toBeCloseTo(0);expect(b.max.y*32).toBeGreaterThanOrEqual(18);
+   }
+   const long=bounds(`gallery-floor-${side}-service-long`),turn=bounds(`gallery-floor-${side}-service-turn`);
+   for(const b of [long,turn])expect(b.max.y*32).toBeLessThan(.4);
+   expect(long.getSize(new T.Vector3()).x*32).toBeGreaterThanOrEqual(15);
+   // Crossing the flush trunk stays legal for both supported actor radii.
+   const x=side==='west'?346:854;
+   for(const radius of [16,28])expect(canTraverseExpedition(createExpeditionGeometry(node),{x:x-40,y:285},{x:x+40,y:285},radius)).toBe(true);
+  }
+  for(const x of [362,833])expect(world.getObjectByName(`gallery-floor-cable-trunk-${x}`)).toBeUndefined();
+  disposeModel(world);
+ });
  it('does not register Room11 models into Room12',()=>{
   const world=new T.Group();environmentArchitecture(world,'engineering',37.5,27.5,'safety-interlock-station');expect(world.children.some(o=>o.name.startsWith('diagnostic-'))).toBe(false);disposeModel(world);
  });

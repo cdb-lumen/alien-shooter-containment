@@ -22,6 +22,8 @@ export function diagnosticGalleryModels():T.Group{
  box('physical-ship-cutaway',600,9,150,396,18,116,dark);
  slab('ship-hull',[{x:411,y:99},{x:741,y:99},{x:789,y:150},{x:741,y:201},{x:411,y:201}],18,8,teal);
  box('stern-frame',416,39,150,7,42,99,ivory);
+ // Steel terminal sockets meet the flush service trenches at the pedestal.
+ for(const [side,x] of [['west',408],['east',792]] as const)box(`${side}-board-socket`,x,9,190,12,18,16,edge);
  // Three stepped deck plates expose each face to the south approach.
  const decks=[{z:179,h:28,width:345},{z:149,h:43,width:361},{z:119,h:58,width:337}];
  for(const [i,d] of decks.entries()){
@@ -64,6 +66,10 @@ export function diagnosticGalleryModels():T.Group{
   slab(id,diagnosticConsolePolygon(start+.3,end-.3,301,349),0,4,dark);
   slab(`${id}-cabinet`,diagnosticConsolePolygon(start+.6,end-.6,307,343),4,19,teal);
   slab(`${id}-top`,diagnosticConsolePolygon(start+.6,end-.6,303,347),23,2,edge);
+  // Inner-face drop descends from the real cabinet to its service trench.
+  // Entire raised section remains inside the approved console solid.
+  const side=id==='west-low-console'?'west':'east',dropX=side==='west'?346:854;
+  box(`${side}-service-drop`,dropX,11.5,398,12,23,12,edge);
   for(let i=0;i<5;i++){
    const a=(start+5+(end-start-10)*i/4)*Math.PI/180;
    const x=600+325*Math.cos(a),z=220+325*Math.sin(a),angle=Math.PI/2-a;

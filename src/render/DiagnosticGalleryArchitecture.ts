@@ -27,12 +27,15 @@ export function diagnosticGalleryArchitecture():T.Group{
  floor('theatre-apron',[...arc(381),new T.Vector2(219/32,-220/32)],theatre,.24);
  floor('outer-seam',[...arc(385),...arc(381,true)],seam,.25);
  floor('ivory-arc',[...arc(373),...arc(371,true)],ivory,.26);
- // Quiet entry spine and two narrow recessed service runs, no hazard-yellow arena grid.
+ // Quiet entry spine. Covered service trenches turn into the board sockets
+ // and end beneath the cabinet drops. Flush lids preserve every crossing route.
  rect('entry-spine',583,614,34,246,teal,.24);
  for(const x of [582,616])rect(`entry-edge-${x}`,x,614,1.5,246,steel,.25);
- for(const x of [362,833]){
-  rect(`cable-trunk-${x}`,x,54,5,256,seam,.27);
-  rect(`trunk-edge-${x}`,x,54,1,256,steel,.28);
+ for(const [side,x,boardX] of [['west',346,408],['east',854,792]] as const){
+  rect(`${side}-service-long`,x-8,182,16,222,steel,.28);
+  rect(`${side}-service-turn`,Math.min(x,boardX)-8,182,Math.abs(boardX-x)+16,16,steel,.28);
+  // Dark panel joints across the steel lids, rather than two loose floor rails.
+  for(const z of [222,262,302,342,382])rect(`${side}-service-lid-joint-${z}`,x-8,z,16,1.5,seam,.29);
  }
  // Outboard ribbed wall. The central recess frames the cutaway without a second screen.
  for(let i=0;i<10;i++){
