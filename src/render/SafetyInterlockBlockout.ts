@@ -2,7 +2,19 @@ import * as T from 'three';
 import {box,rod,ring} from './meshParts';
 import type {Footprint} from './ShipEnvironments';
 
-/** Room12 draft equipment only. Collision and all story behavior remain authoritative elsewhere. */
+// Floor entries share the actual base fit used below. Kept inside the retained reservations.
+export const safetyInterlockEntries=[
+ {name:'recorder',x:-1.75,z:-1.65,terminal:[-1.75,1.42,-.94]},
+ {name:'ai',x:1.98,z:-.86,terminal:[1.98,.70,-.86]},
+ {name:'load',x:-3.17,z:-1.25,terminal:[-3.17,.53,-1.25]},
+ {name:'return',x:3.17,z:1.25,terminal:[3.17,.53,1.25]},
+] as const;
+export function safetyInterlockEntryPoint(footprint:Footprint,entry:typeof safetyInterlockEntries[number]){
+ const lower=entry.name==='load'||entry.name==='return';
+ return new T.Vector2(footprint.x+footprint.width/2+entry.x*footprint.width*.97/(lower?7.25:4.8),footprint.y+footprint.height/2+entry.z*footprint.height*.97/(lower?3.5:4.15));
+}
+
+/** Room12 equipment only. Collision and all story behavior remain authoritative elsewhere. */
 export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Group{
  const root=new T.Group(),cell=new T.Group();root.add(cell);
  const palette=(name:string,color:number,metalness:number,roughness:number,emissive=0)=>{
@@ -11,28 +23,56 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
  const ivory=palette('ivory',0xc9c0a3,.12,.72),copper=palette('dark-copper',0x654432,.65,.49),orange=palette('muted-orange',0x986346,.25,.7),dark=palette('socket',0x172326,.15,.85),steel=palette('housing',0x465354,.55,.64),lamp=palette('local-light',0xd2ba7e,.1,.6,0xc8a361);
  const b=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,m:T.Material)=>{const mesh=box(cell,x,y,z,w,h,d,m,.035);mesh.name=name;return mesh;};
  const v=(x:number,y:number,z:number)=>new T.Vector3(x,y,z);
+ // Custom surfaces are room-owned. The existing world batcher releases these
+ // inputs after copying them; shared meshParts geometry remains untouched.
+ const owned=(name:string,geometry:T.BufferGeometry,material:T.Material,parent:T.Object3D=cell)=>{
+  geometry.userData.environmentUV=true;
+  const mesh=new T.Mesh(geometry,material);mesh.name=name;mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;
+ };
+ const outline=(points:number[][])=>new T.Shape(points.map(([x,z])=>new T.Vector2(x,-z)));
+ const plate=(name:string,shape:T.Shape,y:number,depth:number,material:T.Material,parent:T.Object3D=cell)=>{
+  const mesh=owned(name,new T.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:24,steps:1}),material,parent);
+  mesh.rotation.x=-Math.PI/2;mesh.position.y=y;return mesh;
+ };
+ const cylinder=(name:string,x:number,y:number,z:number,radius:number,height:number,material:T.Material,parent:T.Object3D=cell)=>{
+  const mesh=owned(name,new T.CylinderGeometry(radius,radius,height,24),material,parent);mesh.position.set(x,y,z);return mesh;
+ };
+ const cable=(name:string,points:number[][],radius:number,material:T.Material)=>owned(name,new T.TubeGeometry(new T.CatmullRomCurve3(points.map(([x,y,z])=>v(x,y,z))),32,radius,8,false),material);
  const role=index%3;
  if(role===0){
   root.name='safety-recorder';
   b('sealed-base',0,.15,0,4.8,.3,4.15,ivory);
-  b('recorder-body',0,.72,-.13,4.35,1.14,3.5,ivory);
+  plate('recorder-body',outline([[-2.18,-1.6],[-1.91,-1.88],[1.91,-1.88],[2.18,-1.6],[2.18,1.25],[1.78,1.62],[-1.78,1.62],[-2.18,1.25]]),.3,.99,ivory);
   // Reuse the sixth palette slot for a single glazed lid, not another material.
-  dark.name='room12-inspection-glass';dark.color.setHex(0x9abfc4);
-  dark.transparent=true;dark.opacity=.28;dark.depthWrite=false;dark.roughness=.16;dark.metalness=.1;
+  dark.name='room12-inspection-glass';dark.color.setHex(0xc6cec8);
+  dark.transparent=true;dark.opacity=.10;dark.depthWrite=false;dark.roughness=.16;dark.metalness=.1;
   b('inspection-gasket',-.2,1.305,-.05,3.72,.07,2.55,steel);
   b('inspection-window',-.2,1.35,-.05,3.35,.035,2.27,steel);
   const pane=new T.Mesh(new T.PlaneGeometry(3.58,2.55),dark);
   pane.name='sealed-inspection-pane';pane.rotation.x=-Math.PI/2;pane.position.set(-.2,1.67,-.05);
   pane.geometry.userData.environmentUV=true;cell.add(pane);
-  for(const [name,x] of [['left',-1.02],['right',.64]] as const){
+  for(const [name,x,radius] of [['left',-1.02,.54],['right',.64,.39]] as const){
    const spool=new T.Group();spool.name=`record-spool-${name}`;cell.add(spool);
-   rod(spool,v(x,1.37,-.16),v(x,1.52,-.16),.64,.64,copper);
-   for(const y of [1.39,1.52]){const rim=ring(spool,x,y,-.16,.65,.055,ivory);rim.rotation.x=Math.PI/2;}
-   const winding=ring(spool,x,1.525,-.16,.43,.035,steel);winding.rotation.x=Math.PI/2;
-   rod(spool,v(x,1.37,-.16),v(x,1.59,-.16),.13,.13,steel);
+   // Cutouts are holes through the flanges, not painted dots on solid drums.
+   const flange=new T.Shape();flange.absarc(0,0,.67,0,Math.PI*2,false);
+   for(let i=0;i<5;i++){
+    const angle=i*Math.PI*2/5,hole=new T.Path();
+    hole.absarc(Math.cos(angle)*.43,Math.sin(angle)*.43,.145,0,Math.PI*2,true);flange.holes.push(hole);
+   }
+   for(const [level,y] of [['lower',1.38],['upper',1.54]] as const){
+    const disc=plate(`reel-flange-${name}-${level}`,flange,y,.035,ivory,spool);disc.position.set(x,y,-.16);
+   }
+   cylinder(`wound-tape-${name}`,x,1.46,-.16,radius,.12,copper,spool);
+   cylinder(`reel-hub-${name}`,x,1.49,-.16,.13,.22,steel,spool);
   }
-  b('record-tape-span',-.19,1.48,.49,1.66,.075,.07,copper);
-  for(const x of [-1.02,.64])rod(cell,v(x,1.37,.65),v(x,1.56,.65),.09,.09,ivory);
+  // Pale leader face has enough top width to survive the fixed gameplay camera.
+  // Its continuous U path remains seated between the packs, guides and read head.
+  plate('record-tape-span',outline([[-1.53,.02],[-1.14,.70],[-.42,.88],[.08,.88],[.79,.69],[1.01,-.01],[1.13,.02],[.89,.79],[.08,1.01],[-.43,1.01],[-1.24,.80],[-1.65,.06]]),1.405,.10,ivory);
+  for(const [side,x] of [['left',-1.14],['right',.79]] as const)cylinder(`tape-guide-${side}`,x,1.47,.69,.095,.19,ivory);
+  b('tape-head',-.17,1.46,1.04,.51,.23,.19,steel);
+  cable('recorder-drive-belt',[[-1.02,1.39,-.69],[-1.27,1.39,-1.02],[-.2,1.39,-1.11],[.88,1.39,-1.02],[.64,1.39,-.55]],.035,orange);
+  cable('recorder-local-harness',[[-.17,1.39,1.09],[-.75,1.38,1.14],[-1.7,1.38,1.02],[-1.75,1.38,-.88]],.045,orange);
+  b('recorder-terminal-block',-1.75,1.42,-.94,.19,.14,.34,copper);
   for(const x of [-1.98,1.59])b('window-rim',x,1.51,-.05,.2,.44,2.8,ivory);
   for(const z of [-1.38,1.28])b('window-rim',-.2,1.51,z,3.78,.44,.2,ivory);
   for(const x of [-1.98,1.59])b('lid-hinge',x,1.73,-.9,.3,.12,.4,steel);
@@ -66,7 +106,11 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
   cell.traverse(o=>{
    if(o instanceof T.Mesh&&o.material===ivory&&o!==legend){
     // meshParts geometry is shared across rooms. Only remap owned copies.
-    o.geometry=o.geometry.clone();
+    if(!o.geometry.userData.environmentUV){
+     o.geometry=o.geometry.clone();
+     // BufferGeometry.clone shares userData. Do not mark the cache entry owned.
+     o.geometry.userData={...o.geometry.userData};
+    }
     // Existing world batching releases owned environment-UV inputs after copying.
     o.geometry.userData.environmentUV=true;const uv=o.geometry.getAttribute('uv');
     for(let i=0;i<uv.count;i++)uv.setXY(i,8/768,1-8/160);
@@ -76,28 +120,79 @@ export function safetyInterlockBlockout(footprint:Footprint,index:number):T.Grou
  }else if(role===1){
   root.name='disconnected-ai-housing';
   b('housing-base',0,.15,0,4.8,.3,4.15,steel);
-  b('ai-housing',0,1.02,-.4,4.25,1.74,2.9,steel);
-  b('dark-status-panel',0,1.92,-.4,2.9,.09,1.9,dark);
-  for(const x of [-1.5,0,1.5])b('housing-rib',x,1.12,-.48,.12,1.6,3.1,copper);
-  b('socket-board',0,.74,1.36,3.5,.94,.32,orange);
-  for(const [name,x] of [['left',-.86],['right',.86]] as const){
-   b(`empty-socket-${name}`,x,.79,1.55,.92,.59,.06,dark);
-   const mouth=ring(cell,x,.79,1.61,.31,.07,steel);mouth.name=`socket-rim-${name}`;
+  // Open service chassis. No opaque lid covers the board or cooling hardware.
+  const housing=new T.Group();housing.name='ai-housing';cell.add(housing);
+  housing.add(b('chassis-pan',0,.43,-.4,4.15,.26,2.85,steel));
+  for(const x of [-2,2])housing.add(b('chassis-cheek',x,.98,-.4,.18,1.34,2.85,steel));
+  housing.add(b('chassis-back',0,.98,-1.77,4.15,1.34,.16,steel));
+  b('exposed-circuit-board',0,.84,-.43,3.64,.13,2.36,dark);
+  // Leave a broad board margin between components so their silhouettes read.
+  b('processor-package',-.85,1.0,-.62,1.13,.20,1.1,copper);
+  const heatsink=new T.Group();heatsink.name='processor-heatsink';cell.add(heatsink);
+  for(let i=0;i<7;i++)heatsink.add(b('cooling-fin',-1.33+i*.16,1.31,-.62,.065,.52,.99,ivory));
+  const capacitors=new T.Group();capacitors.name='capacitor-bank';cell.add(capacitors);
+  for(const x of [.65,1.25])for(const z of [-1.12,-.52]){
+   cylinder('capacitor-can',x,1.15,z,.19,.49,steel,capacitors);
+   cylinder('capacitor-cap',x,1.40,z,.15,.025,ivory,capacitors);
   }
+  for(const x of [-1.15,-.5,.3,.95]){
+   b('memory-package',x,.97,.37,.4,.15,.37,ivory);
+   for(const dx of [-.25,.25])b('memory-contacts',x+dx,.925,.37,.075,.035,.31,copper);
+   b('board-trace',x,.913,.05,.055,.014,.21,copper);
+  }
+  b('internal-connector',1.62,1.0,.38,.18,.20,.54,orange);
+  cable('ai-internal-harness',[[1.62,1.05,.38],[1.73,1.13,-.1],[1.71,1.13,-1.3],[.25,1.03,-1.4]],.055,orange);
+  b('board-power-terminal',.25,1.0,-1.4,.30,.19,.20,copper);
+  b('socket-board',-.8,.43,1.37,2.2,.25,.96,orange);
+  const receptacle=new T.Group();receptacle.name='disconnect-receptacle';cell.add(receptacle);
+  for(const [name,x] of [['left',-1.36],['right',-.46]] as const){
+   const socket=cylinder(`empty-socket-${name}`,x,.59,1.37,.29,.1,dark,receptacle);
+   const mouth=ring(receptacle,x,.66,1.37,.29,.055,ivory);mouth.rotation.x=Math.PI/2;mouth.name=`socket-rim-${name}`;
+   for(const dx of [-.1,.1])cylinder('receptacle-contact',socket.position.x+dx,.648,1.37,.035,.025,copper,receptacle);
+  }
+  const plug=new T.Group();plug.name='disconnected-plug';cell.add(plug);
+  plug.add(b('plug-sleeve',1.12,.60,1.37,.65,.37,.56,orange));
+  plug.add(b('plug-collar',.81,.60,1.37,.12,.43,.63,ivory));
+  const pins=new T.Group();pins.name='exposed-plug-pins';plug.add(pins);
+  for(const z of [1.19,1.37,1.55]){
+   const pin=rod(pins,v(.49,.60,z),v(.80,.60,z),.045,.045,copper);pin.name='connector-pin';
+  }
+  cable('disconnected-lead',[[1.44,.60,1.37],[1.92,.52,1.34],[2.19,.48,.78],[2.17,.58,-.58],[1.98,.70,-.86]],.10,dark);
+  b('ai-cable-gland',1.98,.70,-.86,.3,.3,.34,orange);
  }else{
   root.name='split-contactor-battery';
   b('island-base',0,.15,0,7.25,.3,3.5,steel);
-  for(const x of [-2.5,.22]){
-   b('ceramic-support',x,.53,0,1.68,.76,2.65,ivory);
-   for(const z of [-.83,.83])b('insulator-rib',x,.94,z,1.85,.14,.28,ivory);
+  for(const [side,x] of [['left',-2.35],['right',.72]] as const){
+   b('insulator-foot',x,.39,0,1.34,.18,1.5,ivory);
+   const profile=[new T.Vector2(0,0),new T.Vector2(.35,0)];
+   for(let i=0;i<4;i++){
+    const y=.06+i*.15;profile.push(new T.Vector2(.32,y),new T.Vector2(.49,y+.035),new T.Vector2(.49,y+.07),new T.Vector2(.30,y+.12));
+   }
+   profile.push(new T.Vector2(.30,.68),new T.Vector2(0,.68));
+   const post=owned(`fluted-insulator-${side}`,new T.LatheGeometry(profile,32),ivory);post.position.set(x,.44,0);
+   cylinder('insulator-stud',x,1.15,0,.13,.22,steel);
   }
-  b('contactor-left',-2.06,1.12,0,2.35,.28,1.32,copper);
-  b('contactor-right',.82,1.12,0,2.35,.28,1.32,copper);
-  b('open-jaw-tip',-.93,1.29,0,.12,.22,1.32,orange);
-  b('open-jaw-tip',-.31,1.29,0,.12,.22,1.32,orange);
-  const battery=rod(cell,v(2.72,.3,0),v(2.72,1.72,0),.59,.59,ivory);battery.name='local-battery';
-  for(const y of [.46,1.46]){const collar=ring(cell,2.72,y,0,.61,.08,orange);collar.rotation.x=Math.PI/2;}
-  b('battery-terminal',2.72,1.8,0,.28,.16,.28,copper);
+  // Each contact has two fingers and a recessed mouth. Nothing bridges the air gap.
+  plate('contactor-left',outline([[-3.14,-.57],[-.95,-.57],[-.95,-.28],[-1.55,-.28],[-1.55,.28],[-.95,.28],[-.95,.57],[-3.14,.57]]),1.12,.22,copper);
+  plate('contactor-right',outline([[-.25,-.57],[1.65,-.57],[1.65,.57],[-.25,.57],[-.25,.28],[.35,.28],[.35,-.28],[-.25,-.28]]),1.12,.22,copper);
+  for(const x of [-1.03,-.17])for(const z of [-.43,.43])b('contact-wear-face',x,1.355,z,.16,.025,.28,orange);
+  const battery=cylinder('local-battery',2.72,1.01,0,.59,1.42,ivory);
+  for(const y of [.46,1.46]){const collar=ring(cell,battery.position.x,y,0,.61,.08,orange);collar.rotation.x=Math.PI/2;}
+  cylinder('battery-lid',2.72,1.74,0,.55,.08,steel);
+  b('battery-positive-terminal',2.46,1.84,0,.22,.18,.26,copper);
+  b('battery-negative-terminal',2.99,1.84,0,.22,.18,.26,copper);
+  b('contactor-feed-lug',1.42,1.34,0,.33,.19,.38,orange);
+  b('contactor-load-lug',-2.94,1.34,0,.33,.19,.38,orange);
+  b('battery-return-gland',3.17,.53,1.25,.38,.38,.36,ivory);
+  b('load-output-gland',-3.17,.53,-1.25,.38,.38,.36,ivory);
+  cable('battery-supply-cable',[[2.46,1.84,0],[2.18,1.61,-.70],[1.73,1.45,-.77],[1.42,1.34,0]],.12,orange);
+  cable('battery-return-cable',[[2.99,1.84,0],[3.34,1.45,.48],[3.38,.85,1.01],[3.17,.53,1.25]],.11,dark);
+  cable('contactor-load-cable',[[-2.94,1.34,0],[-3.30,1.04,-.45],[-3.34,.63,-.93],[-3.17,.53,-1.25]],.12,dark);
+ }
+ // Short enclosed risers emerge at the existing functional fittings, not dummy pads.
+ for(const entry of safetyInterlockEntries.filter(e=>role===0?e.name==='recorder':role===1?e.name==='ai':e.name==='load'||e.name==='return')){
+  b(`${entry.name}-service-entry`,entry.x,.01,entry.z,.18,.02,.18,steel);
+  cable(`${entry.name}-service-riser`,[[entry.x,.065,entry.z],[entry.x,.32,entry.z],[...entry.terminal]],.06,orange);
  }
  // Fit actual vertex bounds for both canonical and generic test footprints.
  cell.updateMatrixWorld(true);const bounds=new T.Box3().setFromObject(cell,true),size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3());

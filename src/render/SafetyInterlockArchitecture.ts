@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {box,rod} from './meshParts';
+import {safetyInterlockEntries,safetyInterlockEntryPoint} from './SafetyInterlockBlockout';
 
 /** Room12 only: flush deck finish and outboard insulation, never new collision. */
 export function safetyInterlockArchitecture(parent:T.Group,w:number,h:number){
@@ -35,6 +36,33 @@ export function safetyInterlockArchitecture(parent:T.Group,w:number,h:number){
   inlay('service-channel',w/2,z,w-2,.52,metal);
   for(let x=1.2;x<w-1;x+=.42)inlay('channel-slot',x,z,.065,.36,dark);
  }
+ // Fitted base entries, not reservation centers. Three independent service runs:
+ // load jaw to recorder, battery return to the south deck, rear feed to the
+ // AI's loose plug. Nothing joins the AI receptacle or crosses the jaw break.
+ const footprints=[[330,210,160,140],[700,210,160,140],[480,580,240,120]].map(([x,z,width,depth])=>({x:x*w/1200,y:z*h/880,width:width*w/1200,height:depth*h/880}));
+ const [recorder,ai,load,ret]=safetyInterlockEntries.map((e,i)=>safetyInterlockEntryPoint(footprints[i<2?i:2],e));
+ const route=(name:string,points:T.Vector2[])=>{
+  const group=new T.Group();group.name=`service-route-${name}`;deck.add(group);
+  const piece=(name:string,x:number,y:number,z:number,width:number,height:number,depth:number,m:T.Material)=>{
+   const mesh=box(group,x,y,z,width,height,depth,m,0);mesh.name=name;mesh.castShadow=false;
+  };
+  for(let i=1;i<points.length;i++){
+   const a=points[i-1],b=points[i],alongX=Math.abs(b.x-a.x)>1e-6;
+   const length=alongX?Math.abs(b.x-a.x):Math.abs(b.y-a.y),x=(a.x+b.x)/2,z=(a.y+b.y)/2;
+   // A dark bed and raised side lips form a shallow physical trough. The
+   // conductor sits above its bed, below the lips, never above the deck limit.
+   piece('trough-bed',x,.004,z,alongX?length:.34,.008,alongX?.34:length,dark);
+   for(const side of [-1,1])piece('trough-lip',x+(alongX?0:side*.15),.016,z+(alongX?side*.15:0),alongX?length:.04,.012,alongX?.04:length,metal);
+   piece('inset-conductor',x,.014,z,alongX?length:.10,.009,alongX?.10:length,orange);
+  }
+ };
+ route('recorder-load',[load,new T.Vector2(recorder.x,load.y),recorder]);
+ route('ai-rear',[new T.Vector2(ai.x,0),ai]);
+ route('battery-return',[ret,new T.Vector2(ret.x,h-1.75)]);
+ // Rear feed rises only outboard of the traversable deck and meets its band.
+ b('rear-feed-riser-case',ai.x,.60,-.0801,.34,1.20,.16,metal);
+ b('rear-feed-riser-conductor',ai.x,.60,-.0121,.10,1.20,.024,orange);
+ b('rear-feed-termination',ai.x,1.20,-.1401,.44,.26,.28,ceramic);
  // Short worn approach stripes belong to existing equipment, not new zones.
  for(const [x,z,width] of [[w*410/1200,h*380/880,4.5],[w*780/1200,h*380/880,4.5],[w*.5,h*735/880,6.8]]){
   for(const side of [-1,1])inlay('equipment-approach-mark',x+side*width*.36,z,width*.24,.075,orange);
