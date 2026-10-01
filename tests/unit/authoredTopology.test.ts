@@ -9,7 +9,7 @@ const ids=['passenger-vault','breached-loading-bay','overload-floor','awakening-
 const nodes=generateRun(3,3).nodes;
 const probes=[{x:420,y:280},{x:680,y:380},{x:600,y:440},{x:600,y:280}];
 describe('authored walkable topologies',()=>{
- it('replaces exactly four rectangular footprints with polygon boundaries and real voids',()=>{
+ it('keeps four polygon boundaries and the Room16 sealed organ inside its rectangular envelope',()=>{
   expect(nodes).toHaveLength(20);
   for(const n of nodes){const t=ROOM_TEMPLATES[n.templateId];if(ids.includes(n.templateId)){
    expect(t).toHaveProperty('boundary');expect(t).toHaveProperty('voids');
@@ -18,7 +18,7 @@ describe('authored walkable topologies',()=>{
     expect(canOccupyExpedition(g,n.templateId==='passenger-vault'?{x:30,y:50}:{x:50,y:50},radius)).toBe(false);
     expect(canOccupyExpedition(g,probes[ids.indexOf(n.templateId)],radius)).toBe(false);
    }
-  }else{expect(t).not.toHaveProperty('boundary');expect(t).not.toHaveProperty('voids');}}
+  }else{expect(t).not.toHaveProperty('boundary');if(n.templateId==='swarm-junction'){expect(t.voids).toHaveLength(1);expect(t.obstacles).toEqual([]);}else expect(t).not.toHaveProperty('voids');}}
  });
  it('connects spawn, exit and inward-offset breaches for larger actors',()=>{
   for(const n of nodes.filter(n=>ids.includes(n.templateId))){const g=createExpeditionGeometry(n),nav=new FacilityNavigation(g);nav.prepare(g.playerSpawn,1);
