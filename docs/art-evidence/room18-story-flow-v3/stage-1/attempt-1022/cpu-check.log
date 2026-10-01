@@ -1,0 +1,31 @@
+{
+  "tests": 224,
+  "failures": 0,
+  "diagnostics": {
+    "r16": {
+      "sample_spacing": 20,
+      "nodes": 1620,
+      "component_sizes": [
+        1620
+      ],
+      "occupancy_sweep_disagreement": []
+    },
+    "r28": {
+      "sample_spacing": 20,
+      "nodes": 1380,
+      "component_sizes": [
+        1380
+      ],
+      "occupancy_sweep_disagreement": []
+    },
+    "r30": {
+      "sample_spacing": 20,
+      "nodes": 1360,
+      "component_sizes": [
+        1360
+      ],
+      "occupancy_sweep_disagreement": []
+    }
+  },
+  "failed": []
+}
