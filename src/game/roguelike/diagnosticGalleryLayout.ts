@@ -5,11 +5,11 @@ export function diagnosticConsolePolygon(start:number,end:number,inner=300,outer
   const a=(start+(end-start)*(reverse?24-i:i)/24)*Math.PI/180;
   return {x:Number((600+radius*Math.cos(a)).toFixed(4)),y:Number((220+radius*Math.sin(a)).toFixed(4))};
  });
- return [...arc(outer),...arc(inner,true)];
+ return Object.freeze([...arc(outer),...arc(inner,true)].map(p=>Object.freeze(p)));
 }
-export const DIAGNOSTIC_SOLIDS=[
- {id:'physical-ship-cutaway',polygon:[{x:400,y:90},{x:800,y:90},{x:800,y:210},{x:400,y:210}]},
+export const DIAGNOSTIC_SOLIDS=Object.freeze([
+ {id:'physical-ship-cutaway',polygon:Object.freeze([{x:400,y:90},{x:800,y:90},{x:800,y:210},{x:400,y:210}].map(p=>Object.freeze(p)))},
  {id:'west-low-console',polygon:diagnosticConsolePolygon(112,155)},
  {id:'east-low-console',polygon:diagnosticConsolePolygon(25,68)},
-] as const;
-export const DIAGNOSTIC_TOPOLOGY={voids:DIAGNOSTIC_SOLIDS.map(s=>s.polygon),obstacles:[]} as const;
+].map(s=>Object.freeze(s)));
+export const DIAGNOSTIC_TOPOLOGY=Object.freeze({voids:Object.freeze(DIAGNOSTIC_SOLIDS.map(s=>s.polygon)),obstacles:Object.freeze([])});

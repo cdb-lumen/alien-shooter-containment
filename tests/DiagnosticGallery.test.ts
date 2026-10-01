@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import * as T from 'three';
 import {readFileSync} from 'node:fs';
+import {DIAGNOSTIC_SOLIDS,DIAGNOSTIC_TOPOLOGY,diagnosticConsolePolygon} from '../src/game/roguelike/diagnosticGalleryLayout';
 import {STORY_ROOM_TEMPLATES} from '../src/game/roguelike/storyRoomTemplates';
 import {createExpeditionGeometry,canOccupyExpedition,canTraverseExpedition} from '../src/game/world/expeditionGeometry';
 import {environmentArchitecture} from '../src/render/ShipEnvironments';
@@ -8,6 +9,17 @@ import {disposeModel} from '../src/render/meshParts';
 const proposal=JSON.parse(readFileSync('tests/fixtures/diagnostic-gallery-layout.json','utf8'));
 const node={id:'diagnostic-test',templateId:'diagnostic-gallery',depth:10,kind:'combat',next:[],reward:'upgrade'} as const;
 describe('Diagnostic gallery rough placement',()=>{
+ it('deeply freezes topology and model footprint data at runtime',()=>{
+  const assertFrozen=(value:unknown):void=>{
+   if(value===null||typeof value!=='object')return;
+   expect(Object.isFrozen(value)).toBe(true);
+   for(const child of Object.values(value))assertFrozen(child);
+  };
+  for(const value of [DIAGNOSTIC_SOLIDS,DIAGNOSTIC_TOPOLOGY,diagnosticConsolePolygon(112,155),STORY_ROOM_TEMPLATES['diagnostic-gallery']])assertFrozen(value);
+  const point=DIAGNOSTIC_SOLIDS[0].polygon[0],before=point.x;
+  expect(Reflect.set(point,'x',before+1)).toBe(false);
+  expect(point.x).toBe(before);
+ });
  it('integrates exactly the approved three solids, retaining shell and anchors',()=>{
   const t=STORY_ROOM_TEMPLATES['diagnostic-gallery'];
   expect(t.voids).toEqual(proposal.solids.map((s:any)=>s.polygon));expect(t.obstacles).toEqual([]);
