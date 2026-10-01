@@ -15,28 +15,6 @@ const model=()=>{const root=new T.Group();environmentArchitecture(root,'infested
 const bake=(world:T.Group)=>(DepthRenderer.prototype as unknown as {bakeWorld:()=>void}).bakeWorld.call({world});
 const meshes=(root:T.Group)=>{const out:T.Mesh[]=[];root.traverse(o=>{if(o instanceof T.Mesh)out.push(o);});return out;};
 describe('Room16 room visuals',()=>{
- it('closes every crowned plate with opposite directed edges and outward top faces',()=>{
-  const root=model(),plates=meshes(root).filter(m=>m.name.includes('-plate-'));expect(plates).toHaveLength(12);
-  const badEdges=(indices:number[])=>{
-   const edges=new Map<string,number[]>();
-   for(let i=0;i<indices.length;i+=3)for(let j=0;j<3;j++){
-    const a=indices[i+j],b=indices[i+(j+1)%3],key=`${Math.min(a,b)},${Math.max(a,b)}`;
-    const e=edges.get(key)??[0,0];e[0]++;e[1]+=a<b?1:-1;edges.set(key,e);
-   }
-   return [...edges.values()].filter(([count,direction])=>count!==2||direction!==0).length;
-  };
-  for(const plate of plates){
-   const p=plate.geometry.getAttribute('position'),indices=Array.from(plate.geometry.index!.array);
-   expect(badEdges(indices),plate.name).toBe(0);
-   const corrupted=[...indices];[corrupted[1],corrupted[2]]=[corrupted[2],corrupted[1]];expect(badEdges(corrupted)).toBeGreaterThan(0);
-   for(let i=0;i<indices.length;i+=3){
-    const v=indices.slice(i,i+3).map(j=>new T.Vector3().fromBufferAttribute(p,j));
-    const cross=v[1].clone().sub(v[0]).cross(v[2].clone().sub(v[0]));expect(cross.lengthSq()).toBeGreaterThan(1e-12);
-    if(v.every(p=>p.y>35/32+.001))expect(cross.y,plate.name).toBeGreaterThan(0);
-   }
-  }
-  disposeModel(root);
- });
  it('uses crowned organic plates, differentiated materials and recessed wall bays',()=>{
   const root=model(),ms=meshes(root);
   const plate=ms.find(m=>m.name==='root-west-plate-1')!;

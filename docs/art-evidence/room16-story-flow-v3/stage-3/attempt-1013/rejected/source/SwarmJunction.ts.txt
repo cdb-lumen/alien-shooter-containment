@@ -4,7 +4,7 @@ import type {Point} from '../game/roguelike/types';
 
 const U=32;
 type XY=readonly [number,number];
-/** Room16 local room visuals. Game-unit dimensions; no animation, lights or gameplay. */
+/** Room16 stage2 blockout. Game-unit dimensions; no animation, lights or gameplay. */
 export function swarmJunctionBlockout(){
  const root=new T.Group();root.name='swarm-junction-rough';
  const material=(name:string,color:number,metalness:number)=>{
@@ -49,7 +49,7 @@ export function swarmJunctionBlockout(){
   for(let j=0;j<n;j++)edge.push(j*(n+1)+n);
   for(let k=n;k>0;k--)edge.push(n*(n+1)+k);
   for(let j=n;j>0;j--)edge.push(j*(n+1));
-  for(let i=0;i<edge.length;i++){const q=edge[i],r=edge[(i+1)%edge.length];tri(q,r,q+side);tri(r,r+side,q+side);}
+  for(let i=0;i<edge.length;i++){const q=edge[i],r=edge[(i+1)%edge.length];tri(q,q+side,r);tri(r,q+side,r+side);}
   if((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0)for(let i=0;i<indices.length;i+=3)[indices[i+1],indices[i+2]]=[indices[i+2],indices[i+1]];
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(vertices.length/3*2),2));g.setIndex(indices);g.computeVertexNormals();
   return add(name,g,chitin);
