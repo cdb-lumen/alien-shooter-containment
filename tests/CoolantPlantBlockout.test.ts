@@ -10,7 +10,28 @@ const template=ROOM_TEMPLATES['coolant-plant'];
 const node={id:'coolant-test',templateId:'coolant-plant',depth:12,kind:'combat',reward:'upgrade',next:[]} as RunNode;
 const footprints=[[300,210,150,150],[750,210,150,150],[300,540,150,150],[750,540,150,150],[550,390,100,100]];
 function bake(world:T.Group){const renderer=Object.create(DepthRenderer.prototype) as {world:T.Group;floorMaterial:T.Material;bakeWorld():void};renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();renderer.floorMaterial.dispose();return world;}
-describe('coolant plant rough placement',()=>{
+describe('coolant plant room visuals',()=>{
+ it('keeps service covers non-emissive and breaks their finish into grate slots',()=>{
+  const services=coolantPlantServices(),materials=new Set<T.MeshStandardMaterial>();
+  services.traverse(o=>{if(o instanceof T.Mesh)materials.add(o.material as T.MeshStandardMaterial);});
+  for(const m of materials)expect(m.emissive.getHex()).toBe(0);
+  expect(services.children.length).toBeGreaterThan(30);
+ });
+ it('gives both installations the same room-local enamel and stainless finish',()=>{
+  const materials=(index:number)=>{const found=new Map<string,T.MeshStandardMaterial>();coolantPlantBlockout({x:0,y:0,width:4,height:4},index).traverse(o=>{if(o instanceof T.Mesh)found.set(o.material.name,o.material);});return found;};
+  const left=materials(0),right=materials(1),pump=materials(2);
+  for(const name of ['coolant-enamel','coolant-stainless','coolant-mineral']){
+   expect(left.has(name)).toBe(true);expect(right.get(name)).toBe(left.get(name));expect(pump.get(name)).toBe(left.get(name));
+  }
+  expect(left.get('coolant-stainless')!.roughness).toBeGreaterThanOrEqual(.65);
+  expect(left.get('coolant-enamel')!.emissive.getHex()).toBe(0);
+ });
+ it('uses twin exposed headers and braced supports instead of a solid saddle cabinet',()=>{
+  const saddle=coolantPlantBlockout({x:0,y:0,width:4,height:4},4);
+  expect(saddle.getObjectByName('supply-header')).toBeDefined();
+  expect(saddle.getObjectByName('return-header')).toBeDefined();
+  expect(saddle.getObjectByName('saddle-open-frame')).toBeDefined();
+ });
  it('retains all five accepted solid footprints and exact room registration',()=>{
   expect(template.obstacles.map(r=>[r.x,r.y,r.width,r.height])).toEqual(footprints);
   footprints.forEach(([x,y,width,height],index)=>{
@@ -39,6 +60,14 @@ describe('coolant plant rough placement',()=>{
   for(const route of routes)for(let i=1;i<route.length;i++){const [x,y]=route[i-1],[x2,y2]=route[i];expect(canTraverseExpedition(g,{x,y},{x:x2,y:y2},radius)).toBe(true);}
   for(const y of [330,550])expect(hasClearExpeditionShot(g,{x:500,y},{x:700,y})).toBe(true);
   expect(hasClearExpeditionShot(g,{x:500,y:440},{x:700,y:440})).toBe(false);
+ });
+ it('confines the shell finish to the exact coolant room',()=>{
+  for(const id of ['coolant-plant','service-shaft-landing','']){
+   const world=new T.Group();environmentArchitecture(world,'maintenance',37.5,27.5,id);
+   const finishes=new Set<string>();world.traverse(o=>{if(o instanceof T.Mesh)finishes.add((o.material as T.Material).name);});
+   expect(finishes.has('coolant-enamel')).toBe(id==='coolant-plant');
+   expect(finishes.has('coolant-stainless')).toBe(id==='coolant-plant');
+  }
  });
  it('uses fewer than ten batched material draws for the complete assembly',()=>{
   const world=new T.Group();template.obstacles.forEach((r,i)=>appendEnvironment(world,coolantPlantBlockout({x:r.x/32,y:r.y/32,width:r.width/32,height:r.height/32},i)));appendEnvironment(world,coolantPlantServices());bake(world);expect(world.children.length).toBeLessThan(10);
