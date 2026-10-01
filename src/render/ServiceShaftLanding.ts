@@ -62,6 +62,15 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
  box(weight,580,-49,430,124,116,92,steel);
  for(const x of [526,634])box(weight,x,-49,479,8,116,7,dark);
  for(const y of [-94,-69,-44,-19])box(weight,580,y,478,118,18,5,zinc);
+ const frame=new T.Group();frame.name='weight-frame';weight.add(frame);
+ for(const x of [510,650])box(frame,x,-44,470,12,140,18,steel);
+ for(const y of [-108,20])box(frame,580,y,466,178,12,28,steel);
+ for(const y of [-80,12]){
+  box(frame,580,y,430,170,10,20,steel);
+  for(const x of [510,650])box(frame,x,y,450,12,14,52,steel);
+ }
+ // Broad retaining straps distinguish the removable weight plates from the cage.
+ for(const x of [536,624])box(weight,x,-55,483,7,105,3,dark);
  for(const x of [478,682]){
   box(guides,x,-17,430,13,232,20,zinc);
   box(guides,x,-17,439,24,232,6,steel);
@@ -69,17 +78,38 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
    box(guides,x+(x<580?18:-18),y,430,27,20,29,steel);
    const roller=mesh(guides,new T.CylinderGeometry(9/U,9/U,10/U,12),amber);roller.rotation.x=Math.PI/2;roller.position.set(x/U,y/U,445/U);
   }
-  const pulley=mesh(sheaves,new T.TorusGeometry(22/U,5/U,8,20),zinc);pulley.position.set(x/U,99/U,430/U);
-  beam(sheaves,[x-26,99,430],[x+26,99,430],4,steel);
-  beam(sheaves,[x-19,-126,430],[x-19,97,430],2,dark);
-  beam(sheaves,[x+19,-126,430],[x+19,97,430],2,dark);
+  const wheel=new T.Group();wheel.name=`sheave-${x}`;sheaves.add(wheel);
+  // Paired cheeks leave a dark rope groove. The axle runs through the hub,
+  // with two bearing blocks carried by the guide head, not across the wheel.
+  for(const z of [426,434]){
+   const rim=mesh(wheel,new T.TorusGeometry(22/U,3/U,8,24),zinc);rim.position.set(x/U,99/U,z/U);rim.name='rim';
+  }
+  const groove=mesh(wheel,new T.TorusGeometry(21/U,2/U,8,24),dark);groove.position.set(x/U,99/U,430/U);
+  beam(wheel,[x,99,423],[x,99,439],7,steel).name='hub';
+  beam(wheel,[x,99,408],[x,99,452],3,zinc).name='axle';
+  for(const [z,name] of [[411,'bearing-rear'],[449,'bearing-front']] as const){
+   box(wheel,x,94,z,16,19,8,steel).name=name;
+   box(wheel,x,80,z,26,7,12,zinc);
+  }
+  for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+   beam(wheel,[x+6*Math.cos(angle),99+6*Math.sin(angle),435],[x+20*Math.cos(angle),99+20*Math.sin(angle),435],2.5,zinc).name='spoke';
+  }
+  for(const dx of [-22,22])beam(sheaves,[x+dx,-126,430],[x+dx,99,430],1.6,zinc);
  }
  box(guides,580,69,430,228,16,28,steel);
- for(const z of [322,530]){
-  beam(bracing,[470,-128,z],[690,-22,z],8,zinc);beam(bracing,[690,-128,z],[470,-22,z],8,zinc);
-  for(const x of [470,690])box(bracing,x,-22,z,22,24,12,zinc);
-  for(const x of [470,690])beam(bracing,[x,-132,z],[x,-8,z],7,steel);
+ // Expose the rear structural bay above the rim. Its lower posts still reach
+ // the shaft base; the diagonal is clear of the counterweight silhouette.
+ for(const [z,low,high] of [[285,-15,65],[530,-128,-22]]){
+  const truss=new T.Group();truss.name=z===285?'rear-truss':'front-truss';bracing.add(truss);
+  beam(truss,[470,low,z],[690,high,z],6,zinc);beam(truss,[690,low,z],[470,high,z],6,zinc);
+  for(const x of [470,690]){
+   for(const y of [low,high])box(truss,x,y,z,22,20,12,steel);
+   beam(truss,[x,-132,z],[x,high,z],7,steel);
+  }
+  beam(truss,[470,high,z],[690,high,z],4,steel);
  }
+ // Side ties transfer the guide-head load to the rear posts.
+ for(const x of [470,690])beam(bracing,[x,65,285],[x,69,430],4,steel);
  const local=group('local-junction');
  box(local,359,-10,405,34,80,44,steel);box(local,359,33,405,36,6,46,amber);
  // West working face: mechanical call plate. No invented reconnect interaction.
@@ -90,14 +120,15 @@ export function serviceShaftLanding(t:RoomTemplate):T.Group{
  box(local,373,39,407,9,5,5,zinc);
  beam(local,[377,36,426],[384,18,436],3.5,fiber);
  beam(local,[384,18,436],[384,-18,438],3.5,fiber);
- // Sign remains on the solid side. Canvas is room-local and disposed with it.
- box(local,434,9,300,172,12,32,steel);
+ // Mount the sign on the north curb, clear of the raised rear truss.
+ // Canvas is room-local and disposed with it.
+ box(local,810,9,258,172,12,32,steel);
  if(typeof document!=='undefined'){
   const c=document.createElement('canvas');c.width=1024;c.height=128;const ctx=c.getContext('2d');
   if(ctx){ctx.fillStyle='#27343b';ctx.fillRect(0,0,1024,128);ctx.fillStyle='#e6ba79';ctx.font='bold 72px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('LOCAL ACCESS ONLY',512,66,1000);
    const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
    const m=new T.MeshStandardMaterial({map:texture,roughness:.8});m.userData.actorMaterial=true;m.addEventListener('dispose',()=>texture.dispose());
-   const sign=mesh(local,new T.PlaneGeometry(168/U,27/U),m);sign.rotation.x=-Math.PI/2;sign.position.set(434/U,15.1/U,300/U);
+   const sign=mesh(local,new T.PlaneGeometry(168/U,27/U),m);sign.rotation.x=-Math.PI/2;sign.position.set(810/U,15.1/U,258/U);
   }
  }
  const shell=group('outer-shell');

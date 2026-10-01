@@ -14,6 +14,42 @@ const points=[[340,240],[900,240],[900,540],[1200,540],[1200,640],[340,640]].map
 const geometry=createExpeditionGeometry({id:'shaft-test',templateId:'service-shaft-landing'} as any);
 function bake(root:T.Group){const world=new T.Group();appendEnvironment(world,root);const r=Object.create(DepthRenderer.prototype) as any;r.world=world;r.floorMaterial=new T.MeshStandardMaterial();r.bakeWorld();r.floorMaterial.dispose();world.updateMatrixWorld(true);return world;}
 describe('Room14 accepted C balcony rough placement',()=>{
+ it('exposes a rear truss above the deck without moving it onto the route',()=>{
+  const root=serviceShaftLanding(template);root.updateMatrixWorld(true);
+  const rear=root.getObjectByName('rear-truss');expect(rear).toBeTruthy();
+  const bounds=new T.Box3().setFromObject(rear!,true);
+  expect(bounds.max.y*32).toBeGreaterThan(60);
+  expect(bounds.max.z*32).toBeLessThan(310);
+  expect(bounds.min.z*32).toBeGreaterThan(240);
+  // From the shipping camera direction, the upper diagonal must be first hit.
+  const target=new T.Vector3(525/32,45/32,285/32);
+  const direction=new T.Vector3(0,36,26).normalize();
+  const hits=new T.Raycaster(target.clone().addScaledVector(direction,50),direction.negate()).intersectObject(root,true);
+  expect(hits[0]?.object.parent).toBe(rear);
+  disposeModel(root);
+ });
+ it('builds sheave hubs, spokes and bearing supports as connected assemblies',()=>{
+  const root=serviceShaftLanding(template);root.updateMatrixWorld(true);
+  for(const x of [478,682]){
+   const wheel=root.getObjectByName(`sheave-${x}`);expect(wheel).toBeTruthy();
+   for(const name of ['rim','hub','axle','bearing-front','bearing-rear'])expect(wheel!.getObjectByName(name)).toBeTruthy();
+   expect(wheel!.children.filter(o=>o.name==='spoke')).toHaveLength(4);
+   const axle=new T.Box3().setFromObject(wheel!.getObjectByName('axle')!,true);
+   expect(axle.min.z*32).toBeLessThanOrEqual(411);
+   expect(axle.max.z*32).toBeGreaterThanOrEqual(449);
+  }
+  disposeModel(root);
+ });
+ it('ties the counterweight plates to both guide shoes with a load-bearing frame',()=>{
+  const root=serviceShaftLanding(template);root.updateMatrixWorld(true);
+  const frame=root.getObjectByName('weight-frame');expect(frame).toBeTruthy();
+  const bounds=new T.Box3().setFromObject(frame!,true);
+  expect(bounds.min.x*32).toBeLessThanOrEqual(497);
+  expect(bounds.max.x*32).toBeGreaterThanOrEqual(663);
+  expect(bounds.min.y*32).toBeLessThan(-105);
+  expect(bounds.max.y*32).toBeGreaterThan(20);
+  disposeModel(root);
+ });
  it('owns deterministic worn deck grain and disposes its texture',()=>{
   const root=serviceShaftLanding(template);
   const floor=root.getObjectByName('connected-balcony')!.children[0] as T.Mesh;
