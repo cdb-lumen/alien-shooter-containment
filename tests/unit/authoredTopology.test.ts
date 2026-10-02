@@ -5,11 +5,11 @@ import {createExpeditionGeometry,canOccupyExpedition,hasClearExpeditionShot} fro
 import {FacilityNavigation} from '../../src/game/world/FacilityNavigation';
 import {ProjectileHitTracker} from '../../src/game/combat/CombatSystem';
 import {DepthGame} from '../../src/DepthGame';
-const ids=['passenger-vault','breached-loading-bay','overload-floor','awakening-bay'];
+const ids=['passenger-vault','breached-loading-bay','overload-floor','awakening-bay','containment-annulus'];
 const nodes=generateRun(3,3).nodes;
-const probes=[{x:420,y:280},{x:680,y:380},{x:600,y:440},{x:600,y:280}];
+const probes=[{x:420,y:280},{x:680,y:380},{x:600,y:440},{x:600,y:280},{x:600,y:440}];
 describe('authored walkable topologies',()=>{
- it('replaces exactly four rectangular footprints with polygon boundaries and real voids',()=>{
+ it('replaces exactly five rectangular footprints with polygon boundaries and real voids',()=>{
   expect(nodes).toHaveLength(20);
   for(const n of nodes){const t=ROOM_TEMPLATES[n.templateId];if(ids.includes(n.templateId)){
    expect(t).toHaveProperty('boundary');expect(t).toHaveProperty('voids');
