@@ -20,9 +20,9 @@ it('keeps both complete ring directions and entry/exit open at player and enemy 
  }
  expect(hasClearExpeditionShot(g,{x:240,y:440},{x:960,y:440})).toBe(false);
 });
-it('places bounded rough assemblies and preserves owned resource disposal',()=>{
+it('places bounded room assemblies and preserves owned resource disposal',()=>{
  const model=authoredRoom(t.id,t);expect(model).not.toBeNull();if(!model)return;
- expect(model.userData.stage).toBe('rough-model-placement');
+ expect(model.userData.stage).toBe('room-visuals');
  expect(model.userData.assemblies).toEqual(['sealed-core','segmented-jacket','radial-feet','inspection-plugs','passenger-vitals','authorization-state']);
  const bounds=new T.Box3().setFromObject(model,true);expect(bounds.min.x).toBeGreaterThanOrEqual(40/32-1e-5);expect(bounds.max.x).toBeLessThanOrEqual(1160/32+1e-5);expect(bounds.max.y).toBeLessThanOrEqual(1.7);
  const meshes:T.Mesh[]=[];model.traverse(o=>{if(o instanceof T.Mesh)meshes.push(o);});expect(meshes.length).toBeLessThanOrEqual(8);
@@ -37,6 +37,39 @@ it('retires document-present sign textures with their owned materials',()=>{
   expect(textures.size).toBe(2);const spies=[...textures].map(texture=>vi.spyOn(texture,'dispose'));
   disposeModel(model);for(const spy of spies)expect(spy).toHaveBeenCalledTimes(1);
  }finally{vi.unstubAllGlobals();vi.restoreAllMocks();}
+});
+// CPU raycasts check actual surfaces without a renderer or GPU job.
+function surface(model:T.Object3D,x:number,z:number){
+ model.updateMatrixWorld(true);
+ return new T.Raycaster(new T.Vector3(x/32,5,z/32),new T.Vector3(0,-1,0)).intersectObject(model,true)[0];
+}
+it('builds a continuous contrasting circulation finish with flush service seams',()=>{
+ const model=authoredRoom(t.id,t)!;
+ for(const [x,z] of [[600,150],[600,730],[300,440],[900,440],[390,165],[810,715]]){
+  const hit=surface(model,x,z);expect(hit).toBeDefined();
+  expect((hit.object as T.Mesh<T.BufferGeometry,T.Material>).material.name).toBe('annulus-circulation');
+  expect(hit.point.y*32).toBeGreaterThan(0);expect(hit.point.y*32).toBeLessThanOrEqual(1);
+ }
+ // All walkable space remains a floor, not new non-colliding equipment.
+ for(let x=80;x<=1120;x+=20)for(let z=80;z<=800;z+=20){
+  const insideCore=x>=350&&x<=850&&z>=230&&z<=650;
+  if(!insideCore)expect(surface(model,x,z).point.y*32).toBeLessThanOrEqual(1.01);
+ }
+ disposeModel(model);
+});
+it('closes the shield roof with broad ceramic panels and keeps the front jacket low',()=>{
+ const model=authoredRoom(t.id,t)!;
+ for(let i=0;i<16;i++){
+  const a=(i+.5)*Math.PI/8,hit=surface(model,600+Math.cos(a)*105,440+Math.sin(a)*97);
+  expect((hit.object as T.Mesh<T.BufferGeometry,T.Material>).material.name).toMatch(/^annulus-ceramic/);
+  expect(hit.point.y*32).toBeGreaterThanOrEqual(30);
+ }
+ const front=surface(model,600,605),back=surface(model,600,275);
+ expect(front.point.y*32).toBeLessThanOrEqual(42);expect(back.point.y).toBeGreaterThan(front.point.y);
+ const ceramic:T.MeshStandardMaterial[]=[];
+ model.traverse(o=>{if(o instanceof T.Mesh&&o.material.name.startsWith('annulus-ceramic'))ceramic.push(o.material);});
+ expect(ceramic.length).toBe(2);for(const m of ceramic){expect(m.metalness).toBeLessThan(.1);expect(m.roughness).toBeGreaterThan(.8);expect(m.emissive.getHex()).toBe(0);}
+ disposeModel(model);
 });
 it('retains the living-passenger and unarmed story',()=>{
  const story=ROOM_STORY_ROUTE.find(r=>r.templateId===t.id)!;

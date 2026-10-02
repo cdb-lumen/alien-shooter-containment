@@ -3,15 +3,16 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import type {Point,RoomTemplate} from '../game/roguelike/types';
 
 type Plan=Pick<RoomTemplate,'width'|'height'|'boundary'|'voids'|'obstacles'>;
-/** Room18 rough masses. Game coordinates use 32 units per renderer unit.
- * All equipment sits in the sealed core. No props occupy the circulation ring.
- * This is a cutaway jacket, not an exposed or armed reactor. */
+/** Room18 ceramic shielding and flush annular circulation finishes.
+ * Game coordinates use 32 units per renderer unit. All equipment stays inside
+ * the solid core. The low near-side jacket preserves the stage2 silhouette. */
 export function containmentAnnulusBlockout(t:Plan):T.Group{
  const root=new T.Group();root.name='authored-containment-annulus';
- root.userData.stage='rough-model-placement';
+ root.userData.stage='room-visuals';
  root.userData.assemblies=['sealed-core','segmented-jacket','radial-feet','inspection-plugs','passenger-vitals','authorization-state'];
- const finish=(name:string,color:number)=>{const m=new T.MeshStandardMaterial({color,roughness:.78,metalness:.2});m.name=name;m.userData.actorMaterial=true;return m;};
- const deck=finish('annulus-deck',0x525f64),ceramic=finish('annulus-ceramic',0x9ea7a4),metal=finish('annulus-bands',0x65757a),dark=finish('annulus-sealed',0x273237),amber=finish('annulus-unarmed-service',0xb49852),vitals=finish('annulus-living-vitals',0x80aca0);
+ const finish=(name:string,color:number,roughness=.78,metalness=.2)=>{const m=new T.MeshStandardMaterial({color,roughness,metalness});m.name=name;m.userData.actorMaterial=true;return m;};
+ const deck=finish('annulus-deck',0x3d4b51),ceramic=finish('annulus-ceramic',0xb8bab0,.9,.03),metal=finish('annulus-bands',0x66777b,.43,.65),dark=finish('annulus-sealed',0x273237),amber=finish('annulus-unarmed-service',0xb49852),vitals=finish('annulus-living-vitals',0x80aca0);
+ const circulation=finish('annulus-circulation',0x69777a,.88,.12),ceramicShade=finish('annulus-ceramic-shadow',0x909b98,.92,.03);
  const parts=new Map<T.Material,T.BufferGeometry[]>();
  const add=(g:T.BufferGeometry,m:T.Material,x=0,y=0,z=0,angle=0)=>{
   g.rotateY(angle);g.translate(x,y,z);const flat=g.index?g.toNonIndexed():g;if(flat!==g)g.dispose();
@@ -25,16 +26,46 @@ export function containmentAnnulusBlockout(t:Plan):T.Group{
  };
  const boundary=t.boundary!,core=t.voids![0];
  slab(boundary,-14,14,deck,t.voids);slab(core,-14,25,dark);
- // A sealed low cylindrical lid is surrounded by distinct thermal cassettes.
- const lid=new T.CylinderGeometry(1,1,1,32);lid.scale(158/32,23/32,146/32);add(lid,metal,600/32,22.5/32,440/32);
+ // The walkable ring is a broad, flush finish, not a raised catwalk.
+ const expandedCore=(amount:number)=>core.map(p=>({x:p.x+Math.sign(p.x-600)*amount,y:p.y+Math.sign(p.y-440)*amount}));
+ slab(expandedCore(24),0,.2,dark,[core]);
+ slab(expandedCore(124),0,.25,metal,[expandedCore(24)]);
+ slab(expandedCore(120),.25,.2,circulation,[expandedCore(28)]);
+ // Sparse expansion joints cross the finish; no arrows or hazard countdown ring.
+ for(const x of [470,730])for(const z of [268-74,612+74])box(deck,x,z,2,90,.45,.12);
+ for(const x of [306,894])for(const z of [355,525])box(deck,x,z,90,2,.45,.12);
+ // The elliptical jacket has three overlapping courses on a continuous backing.
+ const sector=(inner:number,outer:number,start:number,end:number)=>{
+  const points:Point[]=[];
+  for(let j=0;j<=8;j++){const a=start+(end-start)*j/8;points.push({x:600+Math.cos(a)*outer,y:440+Math.sin(a)*outer*157/170});}
+  for(let j=8;j>=0;j--){const a=start+(end-start)*j/8;points.push({x:600+Math.cos(a)*inner,y:440+Math.sin(a)*inner*157/170});}
+  return points;
+ };
+ const lid=new T.CylinderGeometry(1,1,1,64);lid.scale(160/32,18/32,148/32);add(lid,dark,600/32,20/32,440/32);
+ // Broad closed roof tiles replace the featureless blockout disk. Dark joints
+ // reveal the sealed backing, never an emissive core or a hole through the lid.
  for(let i=0;i<16;i++){
-  const a=i*Math.PI/8,x=600+Math.cos(a)*170,z=440+Math.sin(a)*157;
-  const height=Math.sin(a)>0?30:42;
-  box(ceramic,x,z,63,20,11,height,-a-Math.PI/2);
-  box(metal,x,z,66,24,11,5,-a-Math.PI/2);
-  box(metal,x,z,66,24,11+height-5,5,-a-Math.PI/2);
-  // Low radial mounting feet remain inside the chamfered solid reservation.
-  box(metal,600+Math.cos(a)*208,440+Math.sin(a)*178,34,18,0,9,-a);
+  const a=i*Math.PI/8;
+  slab(sector(57,153,a+.012,a+Math.PI/8-.012),29,i%4===0?5:3,i%4===0?ceramicShade:ceramic);
+ }
+ const hatch=new T.CylinderGeometry(56/32,60/32,7/32,16);add(hatch,metal,600/32,31.5/32,440/32);
+ const hatchFace=new T.CylinderGeometry(49/32,49/32,2/32,16);add(hatchFace,ceramicShade,600/32,36/32,440/32);
+ for(const x of [579,621])box(dark,x,440,6,46,37,1);
+ for(let i=0;i<16;i++){
+  const a=i*Math.PI/8,start=a-Math.PI/16,end=a+Math.PI/16,near=Math.sin(a)>0;
+  const courseHeight=near?9:13,step=near?10:14,top=near?40:52;
+  slab(sector(155,177,start,end),11,top-11,dark);
+  for(let row=0;row<3;row++){
+   // Each upper course overhangs the one below by two game units.
+   slab(sector(159,180+row*2,start+.013,end-.013),11+row*step,courseHeight,row===1?ceramicShade:ceramic);
+  }
+  slab(sector(154,186,start+.006,end-.006),top,2,metal);
+  slab(sector(155,184,start,end),11,3,metal);
+  // Feet, risers and sparse service tabs remain inside the central solid.
+  const x=600+Math.cos(a)*208,z=440+Math.sin(a)*178;
+  box(metal,x,z,34,18,0,9,-a);
+  box(dark,x,z,24,10,9,4,-a);
+  if(i%4===0)box(amber,x,z,12,10,13,1,-a);
  }
  // Closed inspection plugs at north and south, not new interactions.
  for(const z of [270,610]){box(dark,600,z,52,24,11,12);box(metal,600,z,38,16,23,5);}
@@ -51,12 +82,19 @@ export function containmentAnnulusBlockout(t:Plan):T.Group{
   material.addEventListener('dispose',()=>texture.dispose());
   const g=new T.PlaneGeometry(sign.width/32,sign.depth/32);g.rotateX(-Math.PI/2);add(g,material,sign.x/32,(sign.h+.1)/32,sign.z/32);
  }
- // Rough perimeter curb is inside the envelope and below actor silhouette height.
- // Inset from the exact edge so its thickness never extends outside the floor.
+ // Low perimeter wall cassettes sit against the existing envelope. Rear wall
+ // panels are taller; the camera-facing edge stays at the blockout curb height.
  for(let i=0;i<boundary.length;i++){
-  const a=boundary[i],b=boundary[(i+1)%boundary.length],dx=b.x-a.x,dz=b.y-a.y,len=Math.hypot(dx,dz);
+  const a=boundary[i],b=boundary[(i+1)%boundary.length],dx=b.x-a.x,dz=b.y-a.y,len=Math.hypot(dx,dz),angle=-Math.atan2(dz,dx);
   const x=(a.x+b.x)/2-dz/len*4,z=(a.y+b.y)/2+dx/len*4;
-  box(metal,x,z,len-8,8,0,8,-Math.atan2(dz,dx));
+  box(metal,x,z,len-8,8,0,8,angle);
+  const count=Math.max(1,Math.floor(len/140)),height=(a.y+b.y)/2<200?22:8;
+  for(let j=0;j<count;j++){
+   const f=(j+.5)/count,px=a.x+dx*f-dz/len*10,pz=a.y+dz*f+dx/len*10;
+   box(dark,px,pz,len/count-10,12,0,height,angle);
+   box(ceramicShade,px,pz,len/count-18,10,0,height-3,angle);
+   box(metal,px,pz,len/count-10,12,height-3,3,angle);
+  }
  }
  for(const [material,list] of parts){const g=mergeGeometries(list,false)!;list.forEach(p=>p.dispose());const mesh=new T.Mesh(g,material);mesh.userData.bakedEnvironment=true;mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);}
  return root;
