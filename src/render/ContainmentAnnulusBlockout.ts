@@ -8,7 +8,7 @@ type Plan=Pick<RoomTemplate,'width'|'height'|'boundary'|'voids'|'obstacles'>;
  * the solid core. The low near-side jacket preserves the stage2 silhouette. */
 export function containmentAnnulusBlockout(t:Plan):T.Group{
  const root=new T.Group();root.name='authored-containment-annulus';
- root.userData.stage='room-visuals';
+ root.userData.stage='model-iteration';
  root.userData.assemblies=['sealed-core','segmented-jacket','radial-feet','inspection-plugs','passenger-vitals','authorization-state'];
  const finish=(name:string,color:number,roughness=.78,metalness=.2)=>{const m=new T.MeshStandardMaterial({color,roughness,metalness});m.name=name;m.userData.actorMaterial=true;return m;};
  const deck=finish('annulus-deck',0x3d4b51),ceramic=finish('annulus-ceramic',0xb8bab0,.9,.03),metal=finish('annulus-bands',0x66777b,.43,.65),dark=finish('annulus-sealed',0x273237),amber=finish('annulus-unarmed-service',0xb49852),vitals=finish('annulus-living-vitals',0x80aca0);
@@ -61,17 +61,43 @@ export function containmentAnnulusBlockout(t:Plan):T.Group{
   }
   slab(sector(154,186,start+.006,end-.006),top,2,metal);
   slab(sector(155,184,start,end),11,3,metal);
-  // Feet, risers and sparse service tabs remain inside the central solid.
-  const x=600+Math.cos(a)*208,z=440+Math.sin(a)*178;
-  box(metal,x,z,34,18,0,9,-a);
-  box(dark,x,z,24,10,9,4,-a);
-  if(i%4===0)box(amber,x,z,12,10,13,1,-a);
+  // Broad shoes sit ON the plinth. Paired tapered webs transfer jacket load
+  // to each shoe, leaving a readable dark channel between them.
+  const x=600+Math.cos(a)*204,z=440+Math.sin(a)*174;
+  box(metal,x,z,44,30,11,6,-a);
+  for(const offset of [-8,8]){
+   const shape=new T.Shape([new T.Vector2(-22/32,17/32),new T.Vector2(19/32,17/32),new T.Vector2(9/32,24/32),new T.Vector2(-22/32,(near?38:48)/32)]);
+   const web=new T.ExtrudeGeometry(shape,{depth:5/32,bevelEnabled:false,steps:1});
+   web.translate(0,0,(offset-2.5)/32);add(web,metal,x/32,0,z/32,-a);
+  }
+  box(ceramicShade,x+Math.cos(a)*12,z+Math.sin(a)*12,12,26,17,5,-a);
  }
- // Closed inspection plugs at north and south, not new interactions.
- for(const z of [270,610]){box(dark,600,z,52,24,11,12);box(metal,600,z,38,16,23,5);}
- // East status rail with independent vitals and authorization housings.
- box(metal,815,440,24,254,0,19);
- for(const [z,mat] of [[350,vitals],[490,amber]] as const){box(dark,803,z,66,76,19,9);box(mat,803,z,58,58,28,3);}
+ // Flanged inspection cartridges: a sealed recessed throat, raised collar,
+ // and two retaining saddles. No new interaction or opening into the core.
+ for(const z of [258,622]){
+  box(dark,600,z,58,30,11,13);
+  box(metal,600,z-12,58,6,24,7);box(metal,600,z+12,58,6,24,7);
+  box(metal,574,z,6,18,24,7);box(metal,626,z,6,18,24,7);
+  box(ceramicShade,600,z,40,16,24,3);
+  for(const x of [583,617])box(metal,x,z,5,26,27,7);
+ }
+ // Roof lifting saddles interrupt the regular tile fan without uncovering it.
+ for(let i=0;i<8;i++){
+  const a=(i+.5)*Math.PI/4,x=600+Math.cos(a)*133,z=440+Math.sin(a)*123;
+  box(dark,x,z,32,16,32,4,-a);
+  for(const side of [-6,6])box(metal,x-Math.sin(a)*side,z+Math.cos(a)*side,30,4,36,5,-a);
+  box(metal,x,z,7,16,39,3,-a);
+ }
+ // East status rail carries separate recessed instruments in protective frames.
+ box(metal,815,440,24,254,11,8);
+ for(const [z,mat] of [[350,vitals],[490,amber]] as const){
+  box(dark,803,z,66,76,19,9);box(mat,803,z,58,58,28,3);
+  for(const x of [773,833])box(metal,x,z,6,76,25,14);
+  for(const dz of [-35,35])box(metal,803,z+dz,66,6,25,14);
+  // Lower heat-exchanger fins and a conduit elbow remain on the solid rail.
+  for(const dz of [-10,0,10])box(ceramicShade,815,z+49+dz,24,4,19,8);
+  box(dark,782,z,8,46,31,4);
+ }
  root.userData.localSigns=[{text:'PASSENGERS ALIVE',x:810,z:350,h:31,width:48,depth:30},{text:'NOT ARMED',x:810,z:490,h:31,width:48,depth:30}];
  if(typeof document!=='undefined')for(const sign of root.userData.localSigns){
   const canvas=document.createElement('canvas');canvas.width=512;canvas.height=240;const ctx=canvas.getContext('2d');if(!ctx)continue;

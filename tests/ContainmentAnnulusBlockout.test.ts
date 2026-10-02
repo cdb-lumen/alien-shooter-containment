@@ -22,7 +22,7 @@ it('keeps both complete ring directions and entry/exit open at player and enemy 
 });
 it('places bounded room assemblies and preserves owned resource disposal',()=>{
  const model=authoredRoom(t.id,t);expect(model).not.toBeNull();if(!model)return;
- expect(model.userData.stage).toBe('room-visuals');
+ expect(model.userData.stage).toBe('model-iteration');
  expect(model.userData.assemblies).toEqual(['sealed-core','segmented-jacket','radial-feet','inspection-plugs','passenger-vitals','authorization-state']);
  const bounds=new T.Box3().setFromObject(model,true);expect(bounds.min.x).toBeGreaterThanOrEqual(40/32-1e-5);expect(bounds.max.x).toBeLessThanOrEqual(1160/32+1e-5);expect(bounds.max.y).toBeLessThanOrEqual(1.7);
  const meshes:T.Mesh[]=[];model.traverse(o=>{if(o instanceof T.Mesh)meshes.push(o);});expect(meshes.length).toBeLessThanOrEqual(8);
@@ -69,6 +69,29 @@ it('closes the shield roof with broad ceramic panels and keeps the front jacket 
  const ceramic:T.MeshStandardMaterial[]=[];
  model.traverse(o=>{if(o instanceof T.Mesh&&o.material.name.startsWith('annulus-ceramic'))ceramic.push(o.material);});
  expect(ceramic.length).toBe(2);for(const m of ceramic){expect(m.metalness).toBeLessThan(.1);expect(m.roughness).toBeGreaterThan(.8);expect(m.emissive.getHex()).toBe(0);}
+ disposeModel(model);
+});
+it('raises load-bearing shoes above the solid plinth and recesses displays inside guards',()=>{
+ const model=authoredRoom(t.id,t)!;
+ // West foot is clear of the status rail. Shoes must not be buried in the plinth.
+ const shoe=surface(model,376,440);
+ expect(shoe.point.y*32).toBeGreaterThanOrEqual(17);
+ expect((shoe.object as T.Mesh<T.BufferGeometry,T.Material>).material.name).toBe('annulus-bands');
+ const web=surface(model,400,432);
+ expect(web.point.y*32).toBeGreaterThan(23);
+ const screen=surface(model,810,350),guard=surface(model,833,350);
+ expect(guard.point.y*32-screen.point.y*32).toBeGreaterThanOrEqual(6);
+ expect((guard.object as T.Mesh<T.BufferGeometry,T.Material>).material.name).toBe('annulus-bands');
+ // A recessed service throat and its flanged collar are separate solid levels.
+ expect(surface(model,600,634).point.y*32).toBeGreaterThan(surface(model,600,622).point.y*32);
+ disposeModel(model);
+});
+it('keeps raised construction inside the exact canonical solid footprint',()=>{
+ const model=authoredRoom(t.id,t)!;
+ const g=createExpeditionGeometry({id:'room18-model-test',templateId:t.id,depth:17,kind:'combat',reward:'upgrade',next:[]});
+ for(let x=330;x<=870;x+=5)for(let z=215;z<=665;z+=5){
+  if(canOccupyExpedition(g,{x,y:z},0))expect(surface(model,x,z).point.y*32,`${x},${z}`).toBeLessThanOrEqual(1.01);
+ }
  disposeModel(model);
 });
 it('retains the living-passenger and unarmed story',()=>{
