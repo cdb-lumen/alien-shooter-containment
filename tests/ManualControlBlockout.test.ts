@@ -34,6 +34,42 @@ describe('Room19 placed rough authorization equipment',()=>{
   expect(bounds(recess!).max.z).toBeLessThanOrEqual(0);
   const size=bounds(recess!).getSize(new T.Vector3());expect(size.x).toBeGreaterThan(size.y*2);
  });
+ it('raises a deep observation opening above the retained service rails without adding walkable solids',()=>{
+  const world=new T.Group();environmentArchitecture(world,'reactor',37.5,27.5,template.id);
+  const recess=world.getObjectByName('armored-observation-recess')!;
+  expect(bounds(recess).min.y).toBeGreaterThan(2.8);
+  expect(world.getObjectByName('observation-sill')).toBeDefined();
+  const sill=bounds(world.getObjectByName('observation-sill')!);
+  expect(sill.max.z-bounds(recess).max.z).toBeGreaterThan(.4);
+  world.traverse(o=>{if(o instanceof T.Mesh){const b=bounds(o);expect(b.max.z<=0 || b.max.y<=.005).toBe(true);}});
+ });
+ it('keeps the dark slit visible through its hood from the overview viewing angle',()=>{
+  const world=new T.Group();environmentArchitecture(world,'reactor',37.5,27.5,template.id);world.updateMatrixWorld(true);
+  const recess=world.getObjectByName('armored-observation-recess')!;
+  const direction=new T.Vector3(0,36,26).normalize(),face=bounds(recess).max.z;
+  for(const x of [-2.6,0,2.6]){
+   const target=new T.Vector3(37.5*.69+x,3.55,face);
+   const ray=new T.Raycaster(target.clone().addScaledVector(direction,10),direction.clone().negate());
+   expect(ray.intersectObject(world,true)[0]?.object).toBe(recess);
+  }
+ });
+ it('owns ivory enamel and muted amber materials without modifying shared finishes',()=>{
+  const root=model(2),desk=root.getObjectByName('sloped-authorization-desk') as T.Mesh;
+  const enamel=desk.material as T.MeshStandardMaterial;
+  expect(enamel).not.toBe(MAT.bone);expect(enamel.color.getHex()).toBe(0xd3cbb7);
+  expect(enamel.roughness).toBeCloseTo(.48);
+  const owned=new Set<T.Material>();root.traverse(o=>{if(o instanceof T.Mesh && !Array.isArray(o.material)&&o.material.userData.actorMaterial)owned.add(o.material);});
+  expect(owned.size).toBeGreaterThan(0);const spies=[...owned].map(m=>vi.spyOn(m,'dispose'));
+  const world=new T.Group();appendEnvironment(world,root);const renderer=Object.create(DepthRenderer.prototype);renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();disposeModel(world);
+  for(const spy of spies)expect(spy).toHaveBeenCalledTimes(1);renderer.floorMaterial.dispose();vi.restoreAllMocks();
+  expect(MAT.bone.color.getHex()).toBe(0xc5b894);expect(MAT.amber.emissiveIntensity).toBe(1.6);
+ });
+ it('batches the bunker shell without changing its geometry bounds',()=>{
+  const world=new T.Group();environmentArchitecture(world,'reactor',37.5,27.5,template.id);const before=bounds(world);
+  const renderer=Object.create(DepthRenderer.prototype);renderer.world=world;renderer.floorMaterial=new T.MeshStandardMaterial();renderer.bakeWorld();
+  expect(world.children.length).toBeLessThanOrEqual(6);expect(bounds(world).min.distanceTo(before.min)).toBeLessThan(1e-5);expect(bounds(world).max.distanceTo(before.max)).toBeLessThan(1e-5);
+  disposeModel(world);renderer.floorMaterial.dispose();
+ });
  it('preserves actual mesh bounds through flattening/batching and releases only baked geometry',()=>{
   for(const i of [0,1,2]){
    const root=model(i),before=bounds(root),world=new T.Group();appendEnvironment(world,root);contains(world,i);

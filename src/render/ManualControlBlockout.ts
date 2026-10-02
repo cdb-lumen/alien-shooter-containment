@@ -1,11 +1,22 @@
 import * as T from 'three';
-import {box,rod,geometry,MAT} from './meshParts';
+import {box,rod,geometry,MAT as SHARED} from './meshParts';
 import type {Footprint} from './ShipEnvironments';
 
-/** Room19 rough equipment only. These inert meshes never arm the story action.
+/** Per-assembly finishes use the existing owned-material disposal contract. */
+function controlFinishes(){
+ const finish=(color:number,metalness:number,roughness:number,emissive=0,intensity=0)=>{
+  const m=new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity:intensity});
+  m.userData.actorMaterial=true;return m;
+ };
+ return {...SHARED,bone:finish(0xd3cbb7,.18,.48),steel:finish(0x303536,.55,.68),
+  edge:finish(0x737a78,.65,.42),amber:finish(0xb99051,.3,.5,0xcc883c,.28)};
+}
+
+/** Room19 inert equipment. These meshes never arm the story action.
  * All floor equipment fills the existing three collision reservations.
  */
 export function manualControlBlockout(f:Footprint,index:number):T.Group{
+ const MAT=controlFinishes();
  const root=new T.Group(),parts=new T.Group();root.name=`manual-control-blockout-${index}`;root.add(parts);
  const w=f.width,d=f.height;
  const b=(name:string,x:number,y:number,z:number,width:number,height:number,depth:number,mat:T.Material)=>{
@@ -80,13 +91,32 @@ export function manualControlBlockout(f:Footprint,index:number):T.Group{
  root.position.set(f.x,0,f.y);root.userData.footprint={...f};return root;
 }
 
-/** The slit sits in the outboard north wall, with no new walkable obstruction. */
+/** Outboard bunker lining and flush deck apron add no navigation obstacles. */
 export function manualControlArchitecture(parent:T.Group,w:number):void{
- for(let x=2;x<w;x+=4){
-  box(parent,x,1.325,-.48,Math.min(3.96,w-x+2),2.65,.30,MAT.steel,0);
+ const MAT=controlFinishes();
+ const b=(name:string,x:number,y:number,z:number,width:number,height:number,depth:number,mat:T.Material)=>{
+  const m=box(parent,x,y,z,width,height,depth,mat,0);m.name=name;return m;
+ };
+ // Large graphite plates carry the shell, rather than repeating equipment detail.
+ for(let left=0;left<w;left+=4){
+  const width=Math.min(4,w-left);
+  b('graphite-bunker-panel',left+width/2,1.45,-.64,width-.045,2.9,.70,MAT.steel);
+  b('recessed-plinth-course',left+width/2,.24,-.20,width-.09,.42,.28,MAT.black);
  }
- const recess=box(parent,w*.69,1.62,-.32,5.8,.64,.08,MAT.black,0);recess.name='armored-observation-recess';
- for(const y of [-.41,.41])box(parent,w*.69,1.62+y,-.20,6.2,.20,.28,MAT.bone,0);
- for(const x of [-3,3])box(parent,w*.69+x,1.62,-.20,.20,.65,.28,MAT.bone,0);
- for(const x of [-1.5,0,1.5])box(parent,w*.69+x,1.62,-.25,.10,.65,.18,MAT.edge,0);
+ const center=w*.69,opening=7.2,left=center-opening/2,right=center+opening/2;
+ // Upper enamel cladding is interrupted by a genuine deep slit, not a painted stripe.
+ for(const [a,z] of [[0,left-.3],[right+.3,w]]){
+  b('upper-enamel-course',(a+z)/2,3.46,-.68,z-a,1.1,.62,MAT.bone);
+ }
+ b('armored-observation-recess',center,3.46,-.89,opening,1.06,.10,MAT.black);
+ b('observation-sill',center,2.88,-.46,opening+.66,.22,.86,MAT.edge);
+ b('observation-hood',center,4.06,-.46,opening+.66,.26,.86,MAT.bone);
+ for(const x of [left-.15,right+.15])b('observation-jamb',x,3.46,-.46,.30,1.04,.86,MAT.bone);
+ for(const x of [-1.8,1.8])b('observation-mullion',center+x,3.46,-.59,.13,1.02,.49,MAT.steel);
+ b('observation-inner-sill',center,2.99,-.68,opening,.055,.24,MAT.bone);
+ b('observation-status-lamp',right-.32,3.88,-.61,.30,.055,.06,MAT.amber);
+ // A quiet dark service apron anchors the wall without adding a raised platform.
+ const apron=b('flush-service-apron',w/2,-.009,2.1,w-.6,.018,3.6,MAT.steel);apron.castShadow=false;
+ for(let x=4;x<w;x+=4){const joint=b('apron-joint',x,.001,2.1,.025,.002,3.6,MAT.black);joint.castShadow=false;}
+ const seam=b('apron-edge',w/2,.001,3.90,w-.6,.002,.045,MAT.edge);seam.castShadow=false;
 }
