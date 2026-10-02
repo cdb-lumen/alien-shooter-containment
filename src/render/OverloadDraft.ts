@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
-/** Room20 stage2 only. Coordinates are game units; all solid work stays in the
+/** Room20 constructed reactor assembly. Coordinates are game units; all solid work stays in the
  * existing void. Heads occupy the stage1 reservations, not the combat deck. */
 export function createOverloadDraft(){
  const root=new T.Group();root.name='overload-draft';
@@ -34,7 +34,6 @@ export function createOverloadDraft(){
  // Two raised cheeks carry a transverse jaw and a visible axial piston.
  for(const x of [574,626]){box(x,1,510,12,70,52,steel);box(x,39,510,14,6,54,ceramic);}
  box(600,28,489,60,16,12,steel);
- pipe([600,20,492],[600,20,532],7,bronze);pipe([600,20,489],[600,20,512],4,bolts);
  box(600,20,533,28,24,10,steel);
  for(const x of [574,626])for(const z of [490,530])pipe([x,42,z],[x,46,z],3,bolts);
  role('induction-core');foundation(600,415);
@@ -44,11 +43,52 @@ export function createOverloadDraft(){
  for(const x of [578,622])for(const z of [390,440]){
   box(x,12,z,5,92,6,steel);box(x,37,z,8,12,9,ceramic);
  }
+ // Segmented annular shoes wrap the winding rather than reading as wire hoops.
+ const coreGroup=root.getObjectByName('induction-core') as T.Group;const shoes=new T.Group();shoes.name='coil-shoes';coreGroup.add(shoes);group=shoes;
+ for(const h of [-20,18,54])for(let i=0;i<6;i++){
+  const a=i*Math.PI/3+.08,span=Math.PI/3-.16;
+  const shape=new T.Shape();shape.absarc(0,0,29/32,a,a+span,false);
+  shape.absarc(0,0,21/32,a+span,a,true);shape.closePath();
+  const g=new T.ExtrudeGeometry(shape,{depth:8/32,bevelEnabled:true,bevelSize:.8/32,bevelThickness:.8/32,bevelSegments:1,steps:1,curveSegments:6});
+  g.rotateX(-Math.PI/2);add(g,bronze,600,h-4,415);
+ }
+ group=coreGroup;
+ for(const h of [-12,26,62])for(const z of [390,440])box(600,h,z,22,6,8,ceramic);
+ // A ribbed header chest with bolted split flanges on both return lines.
+ group=root.getObjectByName('coolant-header') as T.Group;
+ box(510,17,350,42,24,18,steel);box(510,30,350,34,3,12,ceramic);
+ for(const x of [498,510,522])box(x,17,340.8,5,16,1.5,dark);
+ const flanges=new T.Group();flanges.name='coolant-flanges';group.add(flanges);group=flanges;
+ for(const x of [496,524])for(const z of [360,381]){
+  pipe([x,24,z-2],[x,24,z+2],10,steel);
+  for(const dx of [-7,7])pipe([x+dx,24,z-3],[x+dx,24,z+3],1.5,bolts);
+ }
+ // Raised ceramic saddles and a recessed steel terminal chest protect the bus.
+ group=root.getObjectByName('power-bus') as T.Group;
+ box(690,8,399,54,32,18,steel);box(690,26,399,50,4,18,dark);
+ for(const x of [664,716])box(x,35,374,6,30,46,steel);
+ const insulators=new T.Group();insulators.name='bus-insulators';group.add(insulators);group=insulators;
+ for(const x of [673,690,707])for(const z of [350,395]){
+  pipe([x,24,z],[x,32,z],6,ceramic);pipe([x,27,z],[x,29,z],8,ceramic);
+  box(x,34,z,9,4,10,bronze);pipe([x,36,z],[x,40,z],2,bolts);
+ }
+ group=root.getObjectByName('restraint-head') as T.Group;
+ // Recessed cheek webs, crosshead and guide rods visibly cradle the actuator.
+ for(const x of [574,626]){
+  box(x,8,510,13,28,30,dark);box(x,8,510,15,10,18,steel);
+ }
+ for(const x of [585,615])pipe([x,20,483],[x,20,530],3,bolts);
+ box(600,20,489,38,25,10,steel);box(600,34,489,32,3,10,ceramic);
  role('connections');
  // Local return trunks connect the heads beneath the exposed ring stack.
  for(const x of [496,524]){pipe([x,-26,394],[x,-26,430],4,steel);pipe([x,-26,430],[580,-26,430],4,steel);}
  for(const x of [673,690,707]){pipe([x,0,400],[x,0,450],3,bronze);pipe([x,0,450],[620,0,450],3,bronze);}
- pipe([600,-18,480],[600,-18,460],6,steel);
+ const ram=new T.Group();ram.name='restraint-ram';group.add(ram);group=ram;
+ pipe([600,20,455],[600,20,489],5,bolts);
+ pipe([600,20,490],[600,20,525],9,bronze);
+ for(const z of [491,523])pipe([600,20,z-2],[600,20,z+2],12,steel);
+ // The vertical clevis bolts the elevated ram to the lower core frame.
+ box(600,0,458,22,48,8,steel);box(600,24,458,24,6,10,ceramic);
  root.userData.overloadDraftRoles=root.children.slice(0,4).map(o=>o.name);
  return root;
 }

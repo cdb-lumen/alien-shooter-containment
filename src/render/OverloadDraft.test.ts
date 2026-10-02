@@ -47,6 +47,17 @@ it('preserves actual bounds and triangle count through both batching stages and 
  for(const r of resources.keys())r.addEventListener('dispose',()=>resources.set(r,resources.get(r)!+1));
  disposeModel(world);expect([...resources.values()].every(n=>n===1)).toBe(true);renderer.floorMaterial.dispose();
 });
+it('constructs segmented coil shoes, flanged coolant, guarded buswork and an attached restraint ram',()=>{
+ const root=createOverloadDraft();
+ for(const name of ['coil-shoes','coolant-flanges','bus-insulators','restraint-ram']){
+  const part=root.getObjectByName(name);expect(part, name).toBeDefined();
+  expect(vertices(part!).length).toBeGreaterThan(100);
+ }
+ const shoes=root.getObjectByName('coil-shoes')!;expect(shoes.children).toHaveLength(18);
+ const ram=new T.Box3().setFromObject(root.getObjectByName('restraint-ram')!);
+ expect(ram.min.z*32).toBeLessThanOrEqual(460);expect(ram.max.z*32).toBeGreaterThanOrEqual(510);
+ expect(triangles(root)).toBeLessThan(24000);disposeModel(root);
+});
 it('retains canonical empty collision and all four breaches',()=>{
  const t=ROOM_TEMPLATES['overload-floor'];expect(t.obstacles).toEqual([]);expect(t.breaches).toHaveLength(4);
  expect(t.spawn).toEqual({x:140,y:440});expect(t.exit).toEqual({x:1060,y:440});
