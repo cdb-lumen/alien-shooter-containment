@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {createOverloadDraft,batchOverloadDraft} from './OverloadDraft';
+import {createOverloadShell} from './OverloadShell';
 import {PASSENGER_FINISHES} from './RoomEquipmentPalette';
 import {createAwakeningServiceFinish} from './AwakeningServiceFinish';
 import {AWAKENING_BLOCKOUT,PASSENGER_BLOCKOUT,AUTHORED_ROOM_TOPOLOGIES} from '../game/roguelike/authoredRoomTopologies';
@@ -495,6 +496,8 @@ function breachedBay(f:Fabricator,t:RoomPlan){
  equipment(f,t,'cargo');
 }
 function reactorFloor(f:Fabricator,t:RoomPlan){
+ const shell=batchOverloadDraft(createOverloadShell(t));
+ f.root.add(...shell.children);
  const draft=batchOverloadDraft(createOverloadDraft());
  f.root.userData.overloadDraftRoles=draft.userData.overloadDraftRoles;
  f.root.add(...draft.children);
