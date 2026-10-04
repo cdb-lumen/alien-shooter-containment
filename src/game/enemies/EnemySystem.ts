@@ -47,7 +47,7 @@ export type CollisionSteeringContext = Readonly<{
 
 export type EnemySystemOptions = Readonly<{
   balance?: {health:number;damage:number;speed:number;eliteHealth:number;eliteDamage:number;specials:boolean};
-  canAttack?: (from:EnemyPlayerState,to:EnemyPlayerState)=>boolean;
+  canAttack?: (from:EnemyPlayerState & {type:StandardEnemyId},to:EnemyPlayerState)=>boolean;
   route?: (enemy: EnemyPlayerState & {radius:number}, player:EnemyPlayerState) => EnemyPlayerState|null;
   canMove?: (context: CollisionSteeringContext) => boolean;
 }>;
